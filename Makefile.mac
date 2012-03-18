@@ -1,0 +1,20 @@
+# Options
+CC=c++
+IPATH=/usr/include/gdal
+
+CFLAGS=-O3 -DNDEBUG -I$(IPATH)
+
+LIBS=/Library/Frameworks/GDAL.framework/Versions/1.9/unix/lib/libgdal.dylib /usr/local/lib/libCGAL_Core.dylib /usr/local/lib/libCGAL.dylib /usr/local/lib/libmpfr.dylib /usr/local/lib/libgmp.dylib /usr/local/lib/libboost_thread.dylib
+
+LDFLAGS=-O3 -DNDEBUG -Wl,-search_paths_first -headerpad_max_install_names $(LIBS)
+
+all: prepair
+
+prepair.o: prepair.cpp
+	$(CC) $(CFLAGS) -c $^
+
+prepair: prepair.o
+	$(CC) $(LDFLAGS) $^ -o prepair
+
+clean:
+	rm -rf *.o prepair
