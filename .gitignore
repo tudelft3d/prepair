@@ -1,0 +1,12 @@
+# Metadata
+.DS_Store
+
+# Subversion
+.svn
+
+# OS specific Makefile
+Makefile
+
+# Compiled sources
+*.o
+prepair
