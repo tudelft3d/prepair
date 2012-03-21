@@ -137,6 +137,7 @@ int main (int argc, const char * argv[]) {
     unsigned int bufferSize = 10000000;
     char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
 
+    // should put that more robust
     if (argv[1][0] == 'P' && argv[1][1] == 'O') strcpy(inputWKT,argv[1]);
     else {
         std::ifstream infile(argv[1], std::ifstream::in);
