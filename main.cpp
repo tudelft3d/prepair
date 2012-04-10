@@ -78,8 +78,15 @@ int main (int argc, const char * argv[]) {
   
   for (int argNum = 1; argNum < argc; ++argNum) {
     if (strcmp(argv[argNum], "-f") == 0) {
-      std::ifstream infile(argv[argNum], std::ifstream::in);
-      infile.getline(inputWKT, bufferSize);
+      
+      if (argNum + 1 <= argc - 1 && argv[argNum+1][0] != '-') {
+        std::ifstream infile(argv[argNum+1], std::ifstream::in);
+        infile.getline(inputWKT, bufferSize);
+        ++argNum;
+      } else {
+        std::cerr << "Error: Missing input file name." << std::endl;
+        return 1;
+      }
     }
     else 
       strcpy(inputWKT, argv[argNum]);
@@ -96,12 +103,16 @@ int main (int argc, const char * argv[]) {
   
   OGRMultiPolygon* outputPolygons = repair(geometry);
   
-  char *outputWKT;
-  if (outputPolygons->getNumGeometries() > 1) outputPolygons->exportToWkt(&outputWKT);
-  else outputPolygons->getGeometryRef(0)->exportToWkt(&outputWKT);
-  std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
-  
-  return 0;
+  if (outputPolygons == NULL) {
+    std::cout << "Impossible to repair the polygon: input points are collinear (no area given)." << std::endl;
+    return 0;
+  }
+  else {
+    char *outputWKT;
+    outputPolygons->exportToWkt(&outputWKT);
+    std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+    return 0;
+  }
 }
 
 
@@ -151,6 +162,9 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
 	}
 }
 
+
+
+
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge) {
     
     std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
@@ -178,166 +192,167 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 }
 
 
+
+
 OGRMultiPolygon* repair(OGRGeometry* geometry) {
   
-    // Triangulation
-    Triangulation triangulation;
-    switch (geometry->getGeometryType()) {
-            
-        case wkbPolygon: {
-            
-            OGRPolygon *polygon = (OGRPolygon *)geometry;
-            for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
-                triangulation.insert_constraint(Point(polygon->getExteriorRing()->getX(currentPoint), 
-                                                      polygon->getExteriorRing()->getY(currentPoint)),
-                                                Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
-                                                      polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
-            } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-                for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint)
-                    triangulation.insert_constraint(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint), 
-                                                          polygon->getInteriorRing(currentRing)->getY(currentPoint)),
-                                                    Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()), 
-                                                          polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
-            } break;
-            
-        } default:
-            std::cout << "Error: Cannot understand input. Only polygons are supported." << std::endl;
-            break;
-    } 
+  // Triangulation
+  Triangulation triangulation;
+  switch (geometry->getGeometryType()) {
+      
+    case wkbPolygon: {
+      
+      OGRPolygon *polygon = (OGRPolygon *)geometry;
+      for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
+        triangulation.insert_constraint(Point(polygon->getExteriorRing()->getX(currentPoint), 
+                                              polygon->getExteriorRing()->getY(currentPoint)),
+                                        Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
+                                              polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
+      } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+        for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint)
+          triangulation.insert_constraint(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint), 
+                                                polygon->getInteriorRing(currentRing)->getY(currentPoint)),
+                                          Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()), 
+                                                polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
+      } break;
+      
+    } default:
+      std::cout << "Error: Cannot understand input. Only polygons are supported." << std::endl;
+      break;
+  } 
+  
+//  std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
+  if (triangulation.number_of_faces() < 1) {
+    return NULL;
+  }
+  
+  // Tag
+  void *interior = malloc(sizeof(void *));
+  void *exterior = malloc(sizeof(void *));
+  tag(triangulation, interior, exterior);
+  
+  // Reconstruct
+  //    OGRMultiPolygon outputPolygons;
+  OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
+  for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
     
-    std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
-    if (triangulation.number_of_faces() < 1) {
-        std::cout << "Nothing to create (zero area)." << std::endl;
-        return 0;
-    }
+    if (seedingFace->info() != interior) continue;
     
-    // Tag
-    void *interior = malloc(sizeof(void *));
-    void *exterior = malloc(sizeof(void *));
-    tag(triangulation, interior, exterior);
+    // Get boundary
+    std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
+    seedingFace->info() = NULL;
+    if (seedingFace->neighbor(2)->info() == interior) {
+      seedingFace->neighbor(2)->info() = NULL;
+      std::list<Triangulation::Vertex_handle> *l2 = getBoundary(seedingFace->neighbor(2), seedingFace->neighbor(2)->index(seedingFace));
+      vertices->splice(vertices->end(), *l2);
+      delete l2;
+    } vertices->push_back(seedingFace->vertex(0));
+    if (seedingFace->neighbor(1)->info() == interior) {
+      seedingFace->neighbor(1)->info() = NULL;
+      std::list<Triangulation::Vertex_handle> *l1 = getBoundary(seedingFace->neighbor(1), seedingFace->neighbor(1)->index(seedingFace));
+      vertices->splice(vertices->end(), *l1);
+      delete l1;
+    } vertices->push_back(seedingFace->vertex(2));
+    if (seedingFace->neighbor(0)->info() == interior) {
+      seedingFace->neighbor(0)->info() = NULL;
+      std::list<Triangulation::Vertex_handle> *l0 = getBoundary(seedingFace->neighbor(0), seedingFace->neighbor(0)->index(seedingFace));
+      vertices->splice(vertices->end(), *l0);
+      delete l0;
+    } vertices->push_back(seedingFace->vertex(1));
     
-    // Reconstruct
-//    OGRMultiPolygon outputPolygons;
-    OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
-    for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
-        
-        if (seedingFace->info() != interior) continue;
-        
-        // Get boundary
-        std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
-        seedingFace->info() = NULL;
-        if (seedingFace->neighbor(2)->info() == interior) {
-            seedingFace->neighbor(2)->info() = NULL;
-            std::list<Triangulation::Vertex_handle> *l2 = getBoundary(seedingFace->neighbor(2), seedingFace->neighbor(2)->index(seedingFace));
-            vertices->splice(vertices->end(), *l2);
-            delete l2;
-        } vertices->push_back(seedingFace->vertex(0));
-        if (seedingFace->neighbor(1)->info() == interior) {
-            seedingFace->neighbor(1)->info() = NULL;
-            std::list<Triangulation::Vertex_handle> *l1 = getBoundary(seedingFace->neighbor(1), seedingFace->neighbor(1)->index(seedingFace));
-            vertices->splice(vertices->end(), *l1);
-            delete l1;
-        } vertices->push_back(seedingFace->vertex(2));
-        if (seedingFace->neighbor(0)->info() == interior) {
-            seedingFace->neighbor(0)->info() = NULL;
-            std::list<Triangulation::Vertex_handle> *l0 = getBoundary(seedingFace->neighbor(0), seedingFace->neighbor(0)->index(seedingFace));
-            vertices->splice(vertices->end(), *l0);
-            delete l0;
-        } vertices->push_back(seedingFace->vertex(1));
-        
-        // Find cutting vertices
-        std::set<Triangulation::Vertex_handle> visitedVertices;
-        std::set<Triangulation::Vertex_handle> repeatedVertices;
-        for (std::list<Triangulation::Vertex_handle>::iterator currentVertex = vertices->begin(); currentVertex != vertices->end(); ++currentVertex) {
-            if (!visitedVertices.insert(*currentVertex).second) repeatedVertices.insert(*currentVertex);
-        } visitedVertices.clear();
-        
-        // Cut and join rings in the correct order
-        std::list<std::list<Triangulation::Vertex_handle> *> rings;
-        std::stack<std::list<Triangulation::Vertex_handle> *> chainsStack;
-        std::map<Triangulation::Vertex_handle, std::list<Triangulation::Vertex_handle> *> vertexChainMap;
-        std::list<Triangulation::Vertex_handle> *newChain = new std::list<Triangulation::Vertex_handle>();
-        for (std::list<Triangulation::Vertex_handle>::iterator currentVertex = vertices->begin(); currentVertex != vertices->end(); ++currentVertex) {
-            
-            // New chain
-            if (repeatedVertices.count(*currentVertex) > 0) {
-                // Closed by itself
-                if (newChain->front() == *currentVertex) {
-                    // Degenerate (insufficient vertices to be valid)
-                    if (newChain->size() < 3) delete newChain;
-                    else {
-                        std::list<Triangulation::Vertex_handle>::iterator secondElement = newChain->begin();
-                        ++secondElement;
-                        // Degenerate (zero area)
-                        if (newChain->back() == *secondElement) delete newChain;
-                        // Valid
-                        else rings.push_back(newChain);
-                    }
-                }
-                // Open by itself
-                else {
-                    // Closed with others in stack
-                    if (vertexChainMap.count(*currentVertex)) {
-                        
-                        while (chainsStack.top() != vertexChainMap[*currentVertex]) {
-                            newChain->splice(newChain->begin(), *chainsStack.top());
-                            chainsStack.pop();
-                        } newChain->splice(newChain->begin(), *chainsStack.top());
-                        chainsStack.pop();
-                        vertexChainMap.erase(*currentVertex);
-                        // Degenerate (insufficient vertices to be valid)
-                        if (newChain->size() < 3) delete newChain;
-                        else {
-                            std::list<Triangulation::Vertex_handle>::iterator secondElement = newChain->begin();
-                            ++secondElement;
-                            // Degenerate (zero area)
-                            if (newChain->back() == *secondElement) delete newChain;
-                            // Valid
-                            else rings.push_back(newChain);
-                        }
-                    }
-                    // Open
-                    else {
-                        // Not first chain
-                        if (repeatedVertices.count(newChain->front()) > 0) vertexChainMap[newChain->front()] = newChain;
-                        chainsStack.push(newChain);
-                    }
-                } newChain = new std::list<Triangulation::Vertex_handle>();
-            } newChain->push_back(*currentVertex);
-        }
-        // Final ring
-        while (chainsStack.size() > 0) {
-            newChain->splice(newChain->begin(), *chainsStack.top());
-            chainsStack.pop();
-        }
-        // Degenerate (insufficient vertices to be valid)
-        if (newChain->size() < 3) delete newChain;
-        else {
+    // Find cutting vertices
+    std::set<Triangulation::Vertex_handle> visitedVertices;
+    std::set<Triangulation::Vertex_handle> repeatedVertices;
+    for (std::list<Triangulation::Vertex_handle>::iterator currentVertex = vertices->begin(); currentVertex != vertices->end(); ++currentVertex) {
+      if (!visitedVertices.insert(*currentVertex).second) repeatedVertices.insert(*currentVertex);
+    } visitedVertices.clear();
+    
+    // Cut and join rings in the correct order
+    std::list<std::list<Triangulation::Vertex_handle> *> rings;
+    std::stack<std::list<Triangulation::Vertex_handle> *> chainsStack;
+    std::map<Triangulation::Vertex_handle, std::list<Triangulation::Vertex_handle> *> vertexChainMap;
+    std::list<Triangulation::Vertex_handle> *newChain = new std::list<Triangulation::Vertex_handle>();
+    for (std::list<Triangulation::Vertex_handle>::iterator currentVertex = vertices->begin(); currentVertex != vertices->end(); ++currentVertex) {
+      
+      // New chain
+      if (repeatedVertices.count(*currentVertex) > 0) {
+        // Closed by itself
+        if (newChain->front() == *currentVertex) {
+          // Degenerate (insufficient vertices to be valid)
+          if (newChain->size() < 3) delete newChain;
+          else {
             std::list<Triangulation::Vertex_handle>::iterator secondElement = newChain->begin();
             ++secondElement;
             // Degenerate (zero area)
             if (newChain->back() == *secondElement) delete newChain;
             // Valid
             else rings.push_back(newChain);
+          }
         }
-        // Make rings
-        std::list<OGRLinearRing *> ringsForPolygon;
-        for (std::list<std::list<Triangulation::Vertex_handle> *>::iterator currentRing = rings.begin(); currentRing != rings.end(); ++currentRing) {
-            OGRLinearRing *newRing = new OGRLinearRing();
-            for (std::list<Triangulation::Vertex_handle>::reverse_iterator currentVertex = (*currentRing)->rbegin(); currentVertex != (*currentRing)->rend(); ++currentVertex) {
-                newRing->addPoint((*currentVertex)->point().x(), (*currentVertex)->point().y());
-            } newRing->addPoint((*currentRing)->back()->point().x(), (*currentRing)->back()->point().y());
-            ringsForPolygon.push_back(newRing);
-        } OGRPolygon *newPolygon = new OGRPolygon();
-        for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing) {
-            if (!(*currentRing)->isClockwise()) {
-                newPolygon->addRingDirectly(*currentRing);
-                break;
+        // Open by itself
+        else {
+          // Closed with others in stack
+          if (vertexChainMap.count(*currentVertex)) {
+            
+            while (chainsStack.top() != vertexChainMap[*currentVertex]) {
+              newChain->splice(newChain->begin(), *chainsStack.top());
+              chainsStack.pop();
+            } newChain->splice(newChain->begin(), *chainsStack.top());
+            chainsStack.pop();
+            vertexChainMap.erase(*currentVertex);
+            // Degenerate (insufficient vertices to be valid)
+            if (newChain->size() < 3) delete newChain;
+            else {
+              std::list<Triangulation::Vertex_handle>::iterator secondElement = newChain->begin();
+              ++secondElement;
+              // Degenerate (zero area)
+              if (newChain->back() == *secondElement) delete newChain;
+              // Valid
+              else rings.push_back(newChain);
             }
-        } for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing)
-            if ((*currentRing)->isClockwise()) newPolygon->addRingDirectly(*currentRing);
-        outputPolygons->addGeometryDirectly(newPolygon);
+          }
+          // Open
+          else {
+            // Not first chain
+            if (repeatedVertices.count(newChain->front()) > 0) vertexChainMap[newChain->front()] = newChain;
+            chainsStack.push(newChain);
+          }
+        } newChain = new std::list<Triangulation::Vertex_handle>();
+      } newChain->push_back(*currentVertex);
     }
+    // Final ring
+    while (chainsStack.size() > 0) {
+      newChain->splice(newChain->begin(), *chainsStack.top());
+      chainsStack.pop();
+    }
+    // Degenerate (insufficient vertices to be valid)
+    if (newChain->size() < 3) delete newChain;
+    else {
+      std::list<Triangulation::Vertex_handle>::iterator secondElement = newChain->begin();
+      ++secondElement;
+      // Degenerate (zero area)
+      if (newChain->back() == *secondElement) delete newChain;
+      // Valid
+      else rings.push_back(newChain);
+    }
+    // Make rings
+    std::list<OGRLinearRing *> ringsForPolygon;
+    for (std::list<std::list<Triangulation::Vertex_handle> *>::iterator currentRing = rings.begin(); currentRing != rings.end(); ++currentRing) {
+      OGRLinearRing *newRing = new OGRLinearRing();
+      for (std::list<Triangulation::Vertex_handle>::reverse_iterator currentVertex = (*currentRing)->rbegin(); currentVertex != (*currentRing)->rend(); ++currentVertex) {
+        newRing->addPoint((*currentVertex)->point().x(), (*currentVertex)->point().y());
+      } newRing->addPoint((*currentRing)->back()->point().x(), (*currentRing)->back()->point().y());
+      ringsForPolygon.push_back(newRing);
+    } OGRPolygon *newPolygon = new OGRPolygon();
+    for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing) {
+      if (!(*currentRing)->isClockwise()) {
+        newPolygon->addRingDirectly(*currentRing);
+        break;
+      }
+    } for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing)
+      if ((*currentRing)->isClockwise()) newPolygon->addRingDirectly(*currentRing);
+    outputPolygons->addGeometryDirectly(newPolygon);
+  }
   return outputPolygons;
 }
 
