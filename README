@@ -1,0 +1,8 @@
+
+
+This project permits you to easily repair "broken" polygons, and that according to the international standards ISO 19107. In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), we *automatically* repair it and give you back a valid WKT. Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output.
+
+Our implementation, called pprepair, performs more or less the same as the new PostGIS 2.0's function [ST_MakeValid()](http://postgis.org/documentation/manual-svn/ST_MakeValid.html), but is several order of magnitude faster (and thus scales better to massive polygons) and predicting its behaviour is simple (so one can guess how her polygons will be repaired).
+
+pprepair is based on a constrained triangulation, and [CGAL](http://www.cgal.org) and [OGC](http://www.gdal.org/ogr/) are used.
+
