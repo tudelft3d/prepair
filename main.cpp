@@ -26,6 +26,7 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 // STL
 #include <iostream>
 #include <stack>
@@ -52,6 +53,58 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
+
+
+OGRMultiPolygon* repair(OGRGeometry* geometry);
+void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
+std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
+
+
+
+
+int main (int argc, const char * argv[]) {
+  
+  if (argc < 2 || argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+    std::cout << "=== prepair Help ===\n" << std::endl;
+    std::cout << "Usage:   prepair 'POLYGON(...)'" << std::endl;
+    std::cout << "OR" << std::endl;
+    std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
+    return 0;
+  }
+  
+  // Read input
+  unsigned int bufferSize = 10000000;
+  char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
+  
+  for (int argNum = 1; argNum < argc; ++argNum) {
+    if (strcmp(argv[argNum], "-f") == 0) {
+      std::ifstream infile(argv[argNum], std::ifstream::in);
+      infile.getline(inputWKT, bufferSize);
+    }
+    else 
+      strcpy(inputWKT, argv[argNum]);
+  }
+  
+  std::cout << "Processing: " << inputWKT << std::endl;
+  
+  OGRGeometry *geometry;
+  OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+  if (geometry == NULL) {
+    std::cout << "Error: WKT is not valid" << std::endl;
+    return 1;
+  }
+  
+  OGRMultiPolygon* outputPolygons = repair(geometry);
+  
+  char *outputWKT;
+  if (outputPolygons->getNumGeometries() > 1) outputPolygons->exportToWkt(&outputWKT);
+  else outputPolygons->getGeometryRef(0)->exportToWkt(&outputWKT);
+  std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+  
+  return 0;
+}
+
+
 
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle) {
 	
@@ -125,33 +178,8 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 }
 
 
-
-int main (int argc, const char * argv[]) {
-    
-    if (argc != 2) {
-        std::cout << "Error: No input given." << std::endl;
-        return 1;
-    }
-    
-    // Read input
-    unsigned int bufferSize = 10000000;
-    char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
-
-    // should put that more robust
-    // or not
-    if (argv[1][0] == 'P' && argv[1][1] == 'O') strcpy(inputWKT,argv[1]);
-    else {
-        std::ifstream infile(argv[1], std::ifstream::in);
-        infile.getline(inputWKT,bufferSize);
-    }
-
-    OGRGeometry *geometry;
-    OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
-    if (geometry == NULL) {
-        std::cout << "Error: Geometry is NULL" << std::endl;
-        return 1;
-    }
-    
+OGRMultiPolygon* repair(OGRGeometry* geometry) {
+  
     // Triangulation
     Triangulation triangulation;
     switch (geometry->getGeometryType()) {
@@ -189,7 +217,8 @@ int main (int argc, const char * argv[]) {
     tag(triangulation, interior, exterior);
     
     // Reconstruct
-    OGRMultiPolygon outputPolygons;
+//    OGRMultiPolygon outputPolygons;
+    OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
     for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
         
         if (seedingFace->info() != interior) continue;
@@ -307,15 +336,8 @@ int main (int argc, const char * argv[]) {
             }
         } for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing)
             if ((*currentRing)->isClockwise()) newPolygon->addRingDirectly(*currentRing);
-        outputPolygons.addGeometryDirectly(newPolygon);
+        outputPolygons->addGeometryDirectly(newPolygon);
     }
-    
-    // Display output
-    char *outputWKT;
-    if (outputPolygons.getNumGeometries() > 1) outputPolygons.exportToWkt(&outputWKT);
-    else outputPolygons.getGeometryRef(0)->exportToWkt(&outputWKT);
-    std::cout << "Output:" << std::endl << outputWKT << std::endl;
-    
-    return 0;
+  return outputPolygons;
 }
 

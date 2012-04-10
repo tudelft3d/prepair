@@ -10,3 +10,6 @@ Makefile
 # Compiled sources
 *.o
 prepair
+
+# xcode project
+*.xcodeproj
