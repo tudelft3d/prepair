@@ -1,6 +1,6 @@
 ## What is prepair?
 
-prepair permits you to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107. In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output.
+prepair -- pronounce "p-repair" as in polygon-repair -- permits you to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107. In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output.
 
 It performs more or less the same as the new PostGIS 2.0's function [ST_MakeValid()](http://postgis.org/documentation/manual-svn/ST_MakeValid.html), but is several order of magnitude faster, scales better to massive polygons, and predicting its behaviour is simple (so one can guess how her polygons will be repaired).
 
@@ -27,11 +27,30 @@ WKT are read as input, and a WKT (a MultiPolygon) is given as output:
     Repaired polygon:  
     MULTIPOLYGON (((0 10,0 0,5 5,0 10)),((5 5,10 0,10 10,5 5)))  
     
-## Examples of input you can try ##
+## Examples of invalid input you can try ##
 
-A 'bowtie' polygon: POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))
+A 'bowtie' polygon: 
+    
+    POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))
 
-Square with wrong orientation: POLYGON((0 0, 0 10, 10 10, 10 0, 0 0))
+Square with wrong orientation: 
+    
+    POLYGON((0 0, 0 10, 10 10, 10 0, 0 0))
 
+Inner ring touching the outer ring:
+
+    POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(5 2,5 7,10 7, 10 2, 5 2))
+
+Dangling edge:
+
+    POLYGON((0 0, 10 0, 15 5, 10 0, 10 10, 0 10, 0 0))
+
+Outer ring not closed:
+
+    POLYGON((0 0, 10 0, 10 10, 0 10))
+
+Two inner rings adjancent:
+
+    POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (1 1, 1 8, 3 8, 3 1, 1 1), (3 1, 3 8, 5 8, 5 1, 3 1))
 
 
