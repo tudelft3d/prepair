@@ -1,6 +1,8 @@
 ## What is prepair?
 
-prepair -- pronounce "p-repair" as in polygon-repair -- permits you to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107. In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output.
+prepair -- pronounce 'p-repair' as in 'polygon repair' -- permits you to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107 (Geographic information -- Spatial schema). In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. 
+
+Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output. Examples of errors are: polygon has a dangling edge; polygon is not closed; polygon self-intersects; an inner ring of the polygon is located outside the outer ring; etc.
 
 It performs more or less the same as the new PostGIS 2.0's function [ST_MakeValid()](http://postgis.org/documentation/manual-svn/ST_MakeValid.html), but is several order of magnitude faster, scales better to massive polygons, and predicting its behaviour is simple (so one can guess how her polygons will be repaired).
 
@@ -11,16 +13,16 @@ Details of how we automatically repair broken polygons, and what results you can
 
 ## How to compile?
 
-You need to install the following two free libraries:
+You first need to install the following two (free) libraries:
 
 1. [CGAL](http://www.cgal.org)
 2. [OGR](http://www.gdal.org/ogr/)
 
 And then use the makefile provided for Mac and Linux. For Windows, you're on your own right now, but we plan to provide binaries in the near future.
 
-## It's a command-line interface only
+## It's a command-line program only
 
-WKT are read as input, and a WKT (a MultiPolygon) is given as output:
+WKT is read as input, and a WKT (a MultiPolygon) is given as output:
 
     $ ./prepair 'POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))'  
     Processing: POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))  
