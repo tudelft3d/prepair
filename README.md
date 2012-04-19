@@ -51,8 +51,10 @@ Outer ring not closed:
 
     POLYGON((0 0, 10 0, 10 10, 0 10))
 
-Two inner rings adjancent:
+Two adjacent inner rings:
 
     POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (1 1, 1 8, 3 8, 3 1, 1 1), (3 1, 3 8, 5 8, 5 1, 3 1))
 
+Polygon with an inner ring inside another inner ring:
+    POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (2 8, 5 8, 5 2, 2 2, 2 8), (3 3, 4 3, 3 4, 3 3))
 
