@@ -1,6 +1,6 @@
 ## What is prepair?
 
-prepair -- pronounce 'p-repair' as in 'polygon repair' -- permits you to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107 (Geographic information -- Spatial schema). In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. 
+prepair -- pronounce 'pee-repair' as in 'polygon repair' -- permits us to easily repair "broken" GIS polygons, and that according to the international standards ISO 19107 (Geographic information -- Spatial schema). In brief, given a polygon stored in [WKT](http://en.wikipedia.org/wiki/Well-known_text), it *automatically* repairs it and gives you back a valid WKT. 
 
 Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output. Examples of errors are: polygon has a dangling edge; polygon is not closed; polygon self-intersects; an inner ring of the polygon is located outside the outer ring; etc.
 
