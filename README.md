@@ -9,7 +9,7 @@ It performs more or less the same as the new PostGIS 2.0's function [ST_MakeVali
 prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is used) and [OGC](http://www.gdal.org/ogr/) is used to read/write WKT.
 
 ## Details
-Details of how we automatically repair broken polygons, and what results you can expect, are available our [Agile 2012 paper](http://www.gdmc.nl/ledoux/pdfs/_12agile.pdf).
+Details of how we automatically repair broken polygons, and what results you can expect, are available in our [Agile 2012 paper](http://www.gdmc.nl/ledoux/pdfs/_12agile.pdf).
 
 ## How to compile?
 
