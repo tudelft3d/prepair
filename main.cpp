@@ -26,6 +26,10 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// Compile-time options
+// if the code crashes, try to compile with EXACT_CONSTRUCTIONS so that
+// robust arithmetic is used
+#define EXACT_CONSTRUCTIONS
 
 // STL
 #include <iostream>
@@ -37,12 +41,22 @@
 #include <gdal/ogrsf_frmts.h>
 
 // CGAL
+#ifdef EXACT_CONSTRUCTIONS
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#else
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#endif
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
 
+// Kernel
+#ifdef EXACT_CONSTRUCTIONS
+typedef CGAL::Exact_predicates_exact_constructions_kernel K;
+#else
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+#endif
+
 typedef CGAL::Triangulation_vertex_base_2<K> VB;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
 typedef CGAL::Triangulation_face_base_with_info_2<void *, K, FB> FBWI;
@@ -340,8 +354,8 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
     for (std::list<std::list<Triangulation::Vertex_handle> *>::iterator currentRing = rings.begin(); currentRing != rings.end(); ++currentRing) {
       OGRLinearRing *newRing = new OGRLinearRing();
       for (std::list<Triangulation::Vertex_handle>::reverse_iterator currentVertex = (*currentRing)->rbegin(); currentVertex != (*currentRing)->rend(); ++currentVertex) {
-        newRing->addPoint((*currentVertex)->point().x(), (*currentVertex)->point().y());
-      } newRing->addPoint((*currentRing)->back()->point().x(), (*currentRing)->back()->point().y());
+        newRing->addPoint(CGAL::to_double((*currentVertex)->point().x()), CGAL::to_double((*currentVertex)->point().y()));
+      } newRing->addPoint(CGAL::to_double((*currentRing)->back()->point().x()), CGAL::to_double((*currentRing)->back()->point().y()));
       ringsForPolygon.push_back(newRing);
     } OGRPolygon *newPolygon = new OGRPolygon();
     for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing) {
