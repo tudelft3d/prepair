@@ -6,7 +6,7 @@ Automated repair methods can be considered as interpreting ambiguous or ill-defi
 
 It performs more or less the same as the new PostGIS 2.0's function [ST_MakeValid()](http://postgis.org/documentation/manual-svn/ST_MakeValid.html), but is several order of magnitude faster, scales better to massive polygons, and predicting its behaviour is simple (so one can guess how her polygons will be repaired).
 
-prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is used) and [OGC](http://www.gdal.org/ogr/) is used to read/write WKT.
+prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is used) and [OGR](http://www.gdal.org/ogr/) is used to read/write WKT.
 
 ## Details
 Details of how we automatically repair broken polygons, and what results you can expect, are available in our [Agile 2012 paper](http://www.gdmc.nl/ledoux/pdfs/_12agile.pdf).
