@@ -5,7 +5,7 @@ LPATH=/usr/lib
 
 CFLAGS=-Wall -O3 -frounding-math -fno-strict-aliasing -I$(IPATH) -L$(LPATH)
 
-LDFLAGS=-g -O3  -D_REENTRANT -frounding-math -Wl,-Bsymbolic-functions -L$(LPATH) -lCGAL_Core -lCGAL -lgmpxx -lmpfr -lgmp -lboost_thread-mt -lCGAL_Core -lCGAL -lgmpxx -lmpfr -lgmp -lboost_thread-mt -lgdal1.6.0
+LDFLAGS=-g -O3  -D_REENTRANT -frounding-math -Wl,-Bsymbolic-functions -L$(LPATH) -lCGAL_Core -lCGAL -lgmpxx -lmpfr -lgmp -lboost_thread-mt -lCGAL_Core -lCGAL -lgmpxx -lmpfr -lgmp -lboost_thread-mt -lgdal
 
 all: prepair
 

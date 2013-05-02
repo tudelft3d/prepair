@@ -28,8 +28,8 @@ WKT is read as input, and a WKT (a MultiPolygon) is given as output:
     Processing: POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))  
     Repaired polygon:  
     MULTIPOLYGON (((0 10,0 0,5 5,0 10)),((5 5,10 0,10 10,5 5)))  
-    
-## Examples of invalid input you can try ##
+
+## Examples of invalid input you can try
 
 A 'bowtie' polygon: 
     
