@@ -64,11 +64,11 @@ typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
 
 
-OGRMultiPolygon* repair(OGRGeometry* geometry);
+std::list<OGRPolygon*>* repair(OGRGeometry* geometry);
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
 
-
+double MIN_AREA = 1.0;
 
 
 int main (int argc, const char * argv[]) {
@@ -110,21 +110,24 @@ int main (int argc, const char * argv[]) {
     return 1;
   }
   
-  OGRMultiPolygon* outputPolygons = repair(geometry);
+
+  std::list<OGRPolygon*> *outPolygons = repair(geometry);
   
-  if (outputPolygons == NULL) {
+  if (outPolygons == NULL) {
     std::cout << "Impossible to repair the polygon: input points are collinear (no area given)." << std::endl;
     return 0;
   }
   else {
     char *outputWKT;
-    for (int i = 0; i < outputPolygons->getNumGeometries(); i++) {
-      OGRPolygon *pp = (OGRPolygon *) outputPolygons->getGeometryRef(i);
-//      std::cout << pp->get_Area() << std::endl;
+    OGRMultiPolygon* multiPolygon = new OGRMultiPolygon();
+    for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
+      std::cout << (*it)->get_Area() << std::endl;
+      if ((*it)->get_Area() > MIN_AREA) {
+        multiPolygon->addGeometryDirectly(*it);
+      }
     }
-    //OGRErr OGRGeometryCollection::removeGeometry	(	int 	iGeom, int 	bDelete = TRUE)
     
-    outputPolygons->exportToWkt(&outputWKT);
+    multiPolygon->exportToWkt(&outputWKT);
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
     return 0;
   }
@@ -210,7 +213,7 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 
 
 
-OGRMultiPolygon* repair(OGRGeometry* geometry) {
+std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
   
   // Triangulation
   Triangulation triangulation;
@@ -248,7 +251,8 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
   tag(triangulation, interior, exterior);
   
   // Reconstruct
-  OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
+//  OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
+  std::list<OGRPolygon*> *outPolygons = new std::list<OGRPolygon*>();
   for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
     
     if (seedingFace->info() != interior) continue;
@@ -366,8 +370,8 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
       }
     } for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing)
       if ((*currentRing)->isClockwise()) newPolygon->addRingDirectly(*currentRing);
-    outputPolygons->addGeometryDirectly(newPolygon);
+    outPolygons->push_back(newPolygon);
   }
-  return outputPolygons;
+  return outPolygons;
 }
 
