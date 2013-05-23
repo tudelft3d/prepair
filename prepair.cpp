@@ -101,7 +101,7 @@ int main (int argc, const char * argv[]) {
       strcpy(inputWKT, argv[argNum]);
   }
   
-  std::cout << "Processing: " << inputWKT << std::endl;
+  // std::cout << "Processing: " << inputWKT << std::endl;
   
   OGRGeometry *geometry;
   OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
@@ -120,6 +120,7 @@ int main (int argc, const char * argv[]) {
   else {
     char *outputWKT;
     OGRMultiPolygon* multiPolygon = new OGRMultiPolygon();
+    std::cout << outPolygons->size() << std::endl;
     for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
       std::cout << (*it)->get_Area() << std::endl;
       if ((*it)->get_Area() > MIN_AREA) {
@@ -159,10 +160,9 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
             if (currentFace->info() != NULL) continue;
 			currentFace->info() = currentHandle;
             for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-              if (currentFace->neighbor(currentEdge)->info() == NULL) {
+              if (currentFace->neighbor(currentEdge)->info() == NULL) 
                     if (currentFace->is_constrained(currentEdge)) dualStack->push(currentFace->neighbor(currentEdge));
-              }
-              else currentStack->push(currentFace->neighbor(currentEdge));
+                    else currentStack->push(currentFace->neighbor(currentEdge));
             }
         }
 			
