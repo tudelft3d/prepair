@@ -5,7 +5,7 @@
  Martijn Meijers     b.m.meijers@tudelft.nl
  All rights reserved.
  
- This file is part of pprepair: you can redistribute it and/or modify
+ // This file is part of prepair: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
@@ -22,12 +22,14 @@
 // Compile-time options
 // if the code crashes, try to compile with EXACT_CONSTRUCTIONS so that
 // robust arithmetic is used
-#define EXACT_CONSTRUCTIONS
+
+// #define EXACT_CONSTRUCTIONS
 
 // STL
 #include <iostream>
 #include <stack>
 #include <set>
+#include <list>
 #include <fstream>
 
 // OGR
@@ -116,6 +118,12 @@ int main (int argc, const char * argv[]) {
   }
   else {
     char *outputWKT;
+    for (int i = 0; i < outputPolygons->getNumGeometries(); i++) {
+      OGRPolygon *pp = (OGRPolygon *) outputPolygons->getGeometryRef(i);
+//      std::cout << pp->get_Area() << std::endl;
+    }
+    //OGRErr OGRGeometryCollection::removeGeometry	(	int 	iGeom, int 	bDelete = TRUE)
+    
     outputPolygons->exportToWkt(&outputWKT);
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
     return 0;
@@ -148,9 +156,10 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
             if (currentFace->info() != NULL) continue;
 			currentFace->info() = currentHandle;
             for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-                if (currentFace->neighbor(currentEdge)->info() == NULL)
+              if (currentFace->neighbor(currentEdge)->info() == NULL) {
                     if (currentFace->is_constrained(currentEdge)) dualStack->push(currentFace->neighbor(currentEdge));
-                else currentStack->push(currentFace->neighbor(currentEdge));
+              }
+              else currentStack->push(currentFace->neighbor(currentEdge));
             }
         }
 			
@@ -239,7 +248,6 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
   tag(triangulation, interior, exterior);
   
   // Reconstruct
-  //    OGRMultiPolygon outputPolygons;
   OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
   for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
     
