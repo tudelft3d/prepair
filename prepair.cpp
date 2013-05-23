@@ -101,7 +101,7 @@ int main (int argc, const char * argv[]) {
       strcpy(inputWKT, argv[argNum]);
   }
   
-  std::cout << "Processing: " << inputWKT << std::endl;
+  // std::cout << "Processing: " << inputWKT << std::endl;
   
   OGRGeometry *geometry;
   OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
@@ -120,9 +120,7 @@ int main (int argc, const char * argv[]) {
     char *outputWKT;
     for (int i = 0; i < outputPolygons->getNumGeometries(); i++) {
       OGRPolygon *pp = (OGRPolygon *) outputPolygons->getGeometryRef(i);
-//      std::cout << pp->get_Area() << std::endl;
     }
-    //OGRErr OGRGeometryCollection::removeGeometry	(	int 	iGeom, int 	bDelete = TRUE)
     
     outputPolygons->exportToWkt(&outputWKT);
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
@@ -156,9 +154,8 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
             if (currentFace->info() != NULL) continue;
 			currentFace->info() = currentHandle;
             for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-              if (currentFace->neighbor(currentEdge)->info() == NULL) {
+              if (currentFace->neighbor(currentEdge)->info() == NULL) 
                     if (currentFace->is_constrained(currentEdge)) dualStack->push(currentFace->neighbor(currentEdge));
-              }
               else currentStack->push(currentFace->neighbor(currentEdge));
             }
         }
@@ -237,7 +234,7 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
       break;
   } 
   
-//  std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
+ // std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
   if (triangulation.number_of_faces() < 1) {
     return NULL;
   }
