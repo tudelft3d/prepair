@@ -82,7 +82,7 @@ int main (int argc, const char * argv[]) {
   }
   
   // Read input
-  unsigned int bufferSize = 10000000;
+  unsigned int bufferSize = 100000000;
   char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
   
   for (int argNum = 1; argNum < argc; ++argNum) {
