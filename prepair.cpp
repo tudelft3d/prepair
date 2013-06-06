@@ -44,6 +44,12 @@
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
+// CGAL snap rounding
+#include <CGAL/Cartesian.h>
+#include <CGAL/Quotient.h>
+#include <CGAL/MP_Float.h>
+#include <CGAL/Snap_rounding_traits_2.h>
+#include <CGAL/Snap_rounding_2.h>
 
 // Kernel
 #ifdef EXACT_CONSTRUCTIONS
@@ -59,14 +65,24 @@ typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
 typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
 typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
-
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
+
+typedef CGAL::Quotient<CGAL::MP_Float>           Number_type;
+typedef CGAL::Cartesian<Number_type>             Kernel;
+typedef CGAL::Snap_rounding_traits_2<Kernel>     Traits;
+typedef Kernel::Segment_2                        Segment_2;
+typedef Kernel::Point_2                          ISRPoint;
+typedef std::list<Segment_2>                     Segment_list_2;
+typedef std::list<ISRPoint>                       Polyline_2;
+typedef std::list<Polyline_2>                    Polyline_list_2;
+
 
 std::list<OGRPolygon*>* repair(OGRGeometry* geometry);
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
 void usage();
+OGRGeometry* isr(OGRGeometry* geometry);
 
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
@@ -150,7 +166,9 @@ int main (int argc, const char * argv[]) {
     }
   }
   
-
+  //-- snap rounding of the input
+  OGRGeometry *snappedgeom = isr(geometry);
+  return(0);
   
   //-- create triangulation and repair
   std::list<OGRPolygon*> *outPolygons = repair(geometry);
@@ -189,6 +207,48 @@ void usage() {
   std::cout << "Usage:   prepair --shp infile.shp (first polygon of infile.shp is processed)" << std::endl;
 
 }
+
+
+OGRGeometry* isr(OGRGeometry* geometry) {
+  Segment_list_2 seg_list;
+  
+  OGRPolygon *polygon = (OGRPolygon *)geometry;
+  for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
+    seg_list.push_back( Segment_2(
+                        ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
+                        ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
+                              polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()))
+                        ));
+  } 
+  for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+    for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint)
+      seg_list.push_back( Segment_2(
+                          ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint), polygon->getInteriorRing(currentRing)->getY(currentPoint)),
+                          ISRPoint(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()), 
+                                polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()))
+                          ));
+  }
+  
+  // std::cout << "input segments: " << seg_list.size() << std::endl;
+  
+  Polyline_list_2 output_list;
+  CGAL::snap_rounding_2<Traits,Segment_list_2::const_iterator,Polyline_list_2>
+    (seg_list.begin(), seg_list.end(), output_list, 1, true, false, 1);
+
+  int counter = 0;
+  Polyline_list_2::const_iterator iter1;
+  std::cout << output_list.size() << std::endl;
+  for (iter1 = output_list.begin(); iter1 != output_list.end(); ++iter1) {
+    // std::cout << "Polyline number " << ++counter << ":\n";
+    Polyline_2::const_iterator iter2;
+    std::cout << iter1->size() << std::endl;
+    for (iter2 = iter1->begin(); iter2 != iter1->end(); ++iter2)
+      std::cout << CGAL::to_double(iter2->x()) << " " << CGAL::to_double(iter2->y()) << std::endl;
+  }
+  
+  return geometry;
+}
+
 
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle) {
 	
