@@ -265,6 +265,9 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
   Segment_list_2 seg_list;
   
   OGRPolygon *polygon = (OGRPolygon *)geometry;
+  // std::cout << "before: " << polygon->getExteriorRing()->getNumPoints() << std::endl;
+  polygon->closeRings();
+  // std::cout << "before: " << polygon->getExteriorRing()->getNumPoints() << std::endl;
   for (int currentPoint = 0; currentPoint < (polygon->getExteriorRing()->getNumPoints() - 1); ++currentPoint) {
     seg_list.push_back( Segment_2(
                         ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
@@ -274,6 +277,7 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
                         // TODO: @Ken: I think you're creating twice the same edge here... no?
                         
   } 
+  
   for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
     for (int currentPoint = 0; currentPoint < (polygon->getInteriorRing(currentRing)->getNumPoints() - 1); ++currentPoint)
       seg_list.push_back( Segment_2(
