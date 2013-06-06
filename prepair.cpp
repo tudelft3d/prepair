@@ -148,20 +148,6 @@ int main (int argc, const char * argv[]) {
       usage();   
       return(0);   
     }
-<<<<<<< HEAD
-    else 
-      strcpy(inputWKT, argv[argNum]);
-  }
-  
-  // std::cout << "Processing: " << inputWKT << std::endl;
-  
-  OGRGeometry *geometry;
-  OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
-  if (geometry == NULL) {
-    std::cout << "Error: WKT is not valid" << std::endl;
-    return 1;
-=======
->>>>>>> minarea
   }
   
 
@@ -174,13 +160,6 @@ int main (int argc, const char * argv[]) {
   }
   else {
     char *outputWKT;
-<<<<<<< HEAD
-    for (int i = 0; i < outputPolygons->getNumGeometries(); i++) {
-      OGRPolygon *pp = (OGRPolygon *) outputPolygons->getGeometryRef(i);
-    }
-    
-    outputPolygons->exportToWkt(&outputWKT);
-=======
     OGRMultiPolygon* multiPolygon = new OGRMultiPolygon();
     if (MIN_AREA > 0) {
       std::cout << "Removing polygons smaller than " << MIN_AREA << " unit^2." << std::endl;
@@ -195,7 +174,6 @@ int main (int argc, const char * argv[]) {
           multiPolygon->addGeometryDirectly(*it);
     } 
     multiPolygon->exportToWkt(&outputWKT);
->>>>>>> minarea
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
     // std::cout << std::endl << "Polygon repaired." << std::endl;
     return 0;
@@ -236,18 +214,12 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
             if (currentFace->info() != NULL) continue;
 			currentFace->info() = currentHandle;
             for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-<<<<<<< HEAD
-              if (currentFace->neighbor(currentEdge)->info() == NULL) 
-                    if (currentFace->is_constrained(currentEdge)) dualStack->push(currentFace->neighbor(currentEdge));
-              else currentStack->push(currentFace->neighbor(currentEdge));
-=======
               if (currentFace->neighbor(currentEdge)->info() == NULL) {
                     if (currentFace->is_constrained(currentEdge)) 
                       dualStack->push(currentFace->neighbor(currentEdge));
                     else 
                       currentStack->push(currentFace->neighbor(currentEdge));
               }
->>>>>>> minarea
             }
         }
 			
