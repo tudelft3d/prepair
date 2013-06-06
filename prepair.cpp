@@ -63,27 +63,32 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
 
-
 std::list<OGRPolygon*>* repair(OGRGeometry* geometry);
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
 void usage();
-double MIN_AREA = 1.0;
+
+//-- minimum size of a polygon in the output (smaller ones are not returned)
+//-- can be changed with --min flag
+double MIN_AREA = 0;
 
 
 int main (int argc, const char * argv[]) {
   
-  if (argc < 2 || argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+  if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
     usage();
     return(0);
   }
-  
 
   OGRGeometry *geometry;
 
   for (int argNum = 1; argNum < argc; ++argNum) {
+    if (strcmp(argv[argNum], "--minarea") == 0) {
+      MIN_AREA = atof(argv[argNum+1]);
+      ++argNum;
+    }
     //-- reading from WKT passed directly
-    if (strcmp(argv[argNum], "--wkt") == 0) {
+    else if (strcmp(argv[argNum], "--wkt") == 0) {
       unsigned int bufferSize = 100000000;
       char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
       strcpy(inputWKT, argv[argNum+1]);
@@ -156,13 +161,18 @@ int main (int argc, const char * argv[]) {
   else {
     char *outputWKT;
     OGRMultiPolygon* multiPolygon = new OGRMultiPolygon();
-    // std::cout << outPolygons->size() << std::endl;
-    for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
-      // std::cout << (*it)->get_Area() << std::endl;
-      if ((*it)->get_Area() > MIN_AREA) {
-        multiPolygon->addGeometryDirectly(*it);
+    if (MIN_AREA > 0) {
+      std::cout << "Removing polygons smaller than " << MIN_AREA << " unit^2." << std::endl;
+      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
+        if ((*it)->get_Area() > MIN_AREA) {
+          multiPolygon->addGeometryDirectly(*it);
+        }
       }
     }
+    else {
+      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) 
+          multiPolygon->addGeometryDirectly(*it);
+    } 
     multiPolygon->exportToWkt(&outputWKT);
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
     // std::cout << std::endl << "Polygon repaired." << std::endl;
