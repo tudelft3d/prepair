@@ -63,31 +63,46 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
 
-
-OGRMultiPolygon* repair(OGRGeometry* geometry);
+std::list<OGRPolygon*>* repair(OGRGeometry* geometry);
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
+void usage();
 
-
+//-- minimum size of a polygon in the output (smaller ones are not returned)
+//-- can be changed with --min flag
+double MIN_AREA = 0;
 
 
 int main (int argc, const char * argv[]) {
   
-  if (argc < 2 || argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-    std::cout << "=== prepair Help ===\n" << std::endl;
-    std::cout << "Usage:   prepair 'POLYGON(...)'" << std::endl;
-    std::cout << "OR" << std::endl;
-    std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
-    return 0;
+  if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+    usage();
+    return(0);
   }
-  
-  // Read input
-  unsigned int bufferSize = 10000000;
-  char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
-  
+
+  OGRGeometry *geometry;
+
   for (int argNum = 1; argNum < argc; ++argNum) {
-    if (strcmp(argv[argNum], "-f") == 0) {
-      
+    if (strcmp(argv[argNum], "--minarea") == 0) {
+      MIN_AREA = atof(argv[argNum+1]);
+      ++argNum;
+    }
+    //-- reading from WKT passed directly
+    else if (strcmp(argv[argNum], "--wkt") == 0) {
+      unsigned int bufferSize = 100000000;
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
+      strcpy(inputWKT, argv[argNum+1]);
+      ++argNum;
+      OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+      if (geometry == NULL) {
+        std::cout << "Error: WKT is not valid" << std::endl;
+        return 1;
+      }
+    }
+    //-- reading from WKT stored in first line of a text file
+    else if (strcmp(argv[argNum], "-f") == 0) {
+      unsigned int bufferSize = 100000000;
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
       if (argNum + 1 <= argc - 1 && argv[argNum+1][0] != '-') {
         std::ifstream infile(argv[argNum+1], std::ifstream::in);
         infile.getline(inputWKT, bufferSize);
@@ -96,7 +111,44 @@ int main (int argc, const char * argv[]) {
         std::cerr << "Error: Missing input file name." << std::endl;
         return 1;
       }
+      OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+      if (geometry == NULL) {
+        std::cout << "Error: WKT is not valid" << std::endl;
+        return 1;
+      }
     }
+    //-- reading from a shapefile
+    else if (strcmp(argv[argNum], "--shp") == 0) {
+      OGRRegisterAll();
+      OGRDataSource *dataSource = OGRSFDriverRegistrar::Open(argv[argNum+1], false);
+      ++argNum;
+      if (dataSource == NULL) {
+    		std::cerr << "Error: Could not open file." << std::endl;
+    		return false;
+    	}
+    	OGRLayer *dataLayer = dataSource->GetLayer(0); //-- get first layer
+      dataLayer->ResetReading();
+      //-- Reads all features in this layer
+    	OGRFeature *feature;
+      //-- get first feature
+      if (dataLayer->GetFeatureCount(true) > 1)
+        std::cout << "Reading only the first feature in the shapefile." << std::endl;
+      feature = dataLayer->GetNextFeature();
+      if (feature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
+        geometry = static_cast<OGRPolygon *>(feature->GetGeometryRef());feature->GetGeometryRef();
+        // std::cout << geometry->IsSimple() << std::endl;
+      }
+      else {
+        std::cout << "First feature ain't a POLYGON." << std::endl;
+        return(0);
+      }
+  	  
+    }
+    else {
+      usage();   
+      return(0);   
+    }
+<<<<<<< HEAD
     else 
       strcpy(inputWKT, argv[argNum]);
   }
@@ -108,27 +160,57 @@ int main (int argc, const char * argv[]) {
   if (geometry == NULL) {
     std::cout << "Error: WKT is not valid" << std::endl;
     return 1;
+=======
+>>>>>>> minarea
   }
   
-  OGRMultiPolygon* outputPolygons = repair(geometry);
+
   
-  if (outputPolygons == NULL) {
+  //-- create triangulation and repair
+  std::list<OGRPolygon*> *outPolygons = repair(geometry);
+  if (outPolygons == NULL) {
     std::cout << "Impossible to repair the polygon: input points are collinear (no area given)." << std::endl;
     return 0;
   }
   else {
     char *outputWKT;
+<<<<<<< HEAD
     for (int i = 0; i < outputPolygons->getNumGeometries(); i++) {
       OGRPolygon *pp = (OGRPolygon *) outputPolygons->getGeometryRef(i);
     }
     
     outputPolygons->exportToWkt(&outputWKT);
+=======
+    OGRMultiPolygon* multiPolygon = new OGRMultiPolygon();
+    if (MIN_AREA > 0) {
+      std::cout << "Removing polygons smaller than " << MIN_AREA << " unit^2." << std::endl;
+      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
+        if ((*it)->get_Area() > MIN_AREA) {
+          multiPolygon->addGeometryDirectly(*it);
+        }
+      }
+    }
+    else {
+      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) 
+          multiPolygon->addGeometryDirectly(*it);
+    } 
+    multiPolygon->exportToWkt(&outputWKT);
+>>>>>>> minarea
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+    // std::cout << std::endl << "Polygon repaired." << std::endl;
     return 0;
   }
 }
 
+void usage() {
+  std::cout << "=== prepair Help ===\n" << std::endl;
+  std::cout << "Usage:   prepair --wkt 'POLYGON(...)'" << std::endl;
+  std::cout << "OR" << std::endl;
+  std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
+  std::cout << "OR" << std::endl;
+  std::cout << "Usage:   prepair --shp infile.shp (first polygon of infile.shp is processed)" << std::endl;
 
+}
 
 void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle) {
 	
@@ -154,9 +236,18 @@ void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandl
             if (currentFace->info() != NULL) continue;
 			currentFace->info() = currentHandle;
             for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
+<<<<<<< HEAD
               if (currentFace->neighbor(currentEdge)->info() == NULL) 
                     if (currentFace->is_constrained(currentEdge)) dualStack->push(currentFace->neighbor(currentEdge));
               else currentStack->push(currentFace->neighbor(currentEdge));
+=======
+              if (currentFace->neighbor(currentEdge)->info() == NULL) {
+                    if (currentFace->is_constrained(currentEdge)) 
+                      dualStack->push(currentFace->neighbor(currentEdge));
+                    else 
+                      currentStack->push(currentFace->neighbor(currentEdge));
+              }
+>>>>>>> minarea
             }
         }
 			
@@ -207,7 +298,7 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 
 
 
-OGRMultiPolygon* repair(OGRGeometry* geometry) {
+std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
   
   // Triangulation
   Triangulation triangulation;
@@ -245,7 +336,8 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
   tag(triangulation, interior, exterior);
   
   // Reconstruct
-  OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
+//  OGRMultiPolygon* outputPolygons = new OGRMultiPolygon();
+  std::list<OGRPolygon*> *outPolygons = new std::list<OGRPolygon*>();
   for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
     
     if (seedingFace->info() != interior) continue;
@@ -363,8 +455,8 @@ OGRMultiPolygon* repair(OGRGeometry* geometry) {
       }
     } for (std::list<OGRLinearRing *>::iterator currentRing = ringsForPolygon.begin(); currentRing != ringsForPolygon.end(); ++currentRing)
       if ((*currentRing)->isClockwise()) newPolygon->addRingDirectly(*currentRing);
-    outputPolygons->addGeometryDirectly(newPolygon);
+    outPolygons->push_back(newPolygon);
   }
-  return outputPolygons;
+  return outPolygons;
 }
 
