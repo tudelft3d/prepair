@@ -89,6 +89,7 @@ bool savetoshp(OGRMultiPolygon* multiPolygon);
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
 double MIN_AREA = 0;
+double ISR_TOLERANCE = 0;
 
 
 int main (int argc, const char * argv[]) {
@@ -104,6 +105,11 @@ int main (int argc, const char * argv[]) {
     if (strcmp(argv[argNum], "--minarea") == 0) {
       MIN_AREA = atof(argv[argNum+1]);
       ++argNum;
+    }
+    //-- ISR snapping tolerance
+    else if (strcmp(argv[argNum], "--isr") == 0) {
+      ISR_TOLERANCE = atof(argv[argNum+1]);
+      ++argNum; 
     }
     //-- reading from WKT passed directly
     else if (strcmp(argv[argNum], "--wkt") == 0) {
@@ -168,14 +174,23 @@ int main (int argc, const char * argv[]) {
     }
   }
   
+  std::list<OGRPolygon*> *outPolygons;
   //-- snap rounding of the input
-  Polyline_list_2 *snappedgeom = isr(geometry);
-  std::cout << "size of output_list: " << snappedgeom->size() << std::endl;
-  // return(0);
+  if (ISR_TOLERANCE != 0) {
+    Polyline_list_2 *snappedgeom = isr(geometry);
+    std::cout << "done." << std::endl;
+    outPolygons = repair2(snappedgeom);    
+    // std::cout << "size of output_list: " << snappedgeom->size() << std::endl;
+  }
+  else { 
+    outPolygons = repair(geometry);
+  }
   
-  //-- create triangulation and repair
-  // std::list<OGRPolygon*> *outPolygons = repair(geometry);
-  std::list<OGRPolygon*> *outPolygons = repair2(snappedgeom);
+/*
+  TODO : remove repair2 function
+*/  
+
+
   if (outPolygons == NULL) {
     std::cout << "Impossible to repair the polygon: input points are collinear (no area given)." << std::endl;
     return 0;
@@ -200,7 +215,7 @@ int main (int argc, const char * argv[]) {
     // std::cout << std::endl << "Polygon repaired." << std::endl;
     
     //-- save to a shapefile
-    // savetoshp(multiPolygon);    
+    savetoshp(multiPolygon);    
     return 0;
   }
 }
@@ -262,6 +277,7 @@ bool savetoshp(OGRMultiPolygon* multiPolygon) {
 }
 
 Polyline_list_2* isr(OGRGeometry* geometry) {
+  std::cout << "ISR snapping with tolerance: " << ISR_TOLERANCE << std::endl;
   Segment_list_2 seg_list;
   
   OGRPolygon *polygon = (OGRPolygon *)geometry;
@@ -290,7 +306,7 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
   Polyline_list_2 *output_list = new Polyline_list_2();
   // Polyline_list_2 output_list;
   CGAL::snap_rounding_2<Traits,Segment_list_2::const_iterator, Polyline_list_2>
-    (seg_list.begin(), seg_list.end(), *output_list, 1, true, false, 1);
+    (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 10);
 
   int counter = 0;
   Polyline_list_2::const_iterator iter1;
