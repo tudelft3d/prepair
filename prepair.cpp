@@ -31,6 +31,7 @@
 #include <set>
 #include <list>
 #include <fstream>
+#include <math.h>
 
 // OGR
 #include <gdal/ogrsf_frmts.h>
@@ -68,7 +69,8 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
 typedef Triangulation::Point Point;
 
-typedef CGAL::Quotient<CGAL::MP_Float>           Number_type;
+// typedef CGAL::Quotient<CGAL::MP_Float>           Number_type;
+typedef CGAL::Quotient<CGAL::Gmpq>               Number_type;
 typedef CGAL::Cartesian<Number_type>             Kernel;
 typedef CGAL::Snap_rounding_traits_2<Kernel>     Traits;
 typedef Kernel::Segment_2                        Segment_2;
@@ -279,34 +281,43 @@ bool savetoshp(OGRMultiPolygon* multiPolygon) {
 Polyline_list_2* isr(OGRGeometry* geometry) {
   std::cout << "ISR snapping with tolerance: " << ISR_TOLERANCE << std::endl;
   Segment_list_2 seg_list;
-  
   OGRPolygon *polygon = (OGRPolygon *)geometry;
-  // std::cout << "before: " << polygon->getExteriorRing()->getNumPoints() << std::endl;
   polygon->closeRings();
-  // std::cout << "before: " << polygon->getExteriorRing()->getNumPoints() << std::endl;
   for (int currentPoint = 0; currentPoint < (polygon->getExteriorRing()->getNumPoints() - 1); ++currentPoint) {
-    seg_list.push_back( Segment_2(
-                        ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
-                        ISRPoint(polygon->getExteriorRing()->getX(currentPoint+1), polygon->getExteriorRing()->getY(currentPoint+1)) ));
-                        // ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
-                        //       polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()))
-                        // TODO: @Ken: I think you're creating twice the same edge here... no?
+    Segment_2 s = Segment_2( ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
+                              ISRPoint(polygon->getExteriorRing()->getX(currentPoint+1), polygon->getExteriorRing()->getY(currentPoint+1)));
+    if (s.is_degenerate() == false)
+      seg_list.push_back(s);
+    // else
+      // std::cout << "degenerate segment" << std::endl;
+  }                        
+  // ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
+  //       polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()))
+  // TODO: @Ken: I think you're creating twice the same edge here... no?
                         
-  } 
   
   for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-    for (int currentPoint = 0; currentPoint < (polygon->getInteriorRing(currentRing)->getNumPoints() - 1); ++currentPoint)
-      seg_list.push_back( Segment_2(
-                          ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint),   polygon->getInteriorRing(currentRing)->getY(currentPoint)),
-                          ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint+1), polygon->getInteriorRing(currentRing)->getY(currentPoint+1)) ));
+    for (int currentPoint = 0; currentPoint < (polygon->getInteriorRing(currentRing)->getNumPoints() - 1); ++currentPoint) {
+      Segment_2 s = Segment_2(ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint),   polygon->getInteriorRing(currentRing)->getY(currentPoint)),
+                              ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint+1), polygon->getInteriorRing(currentRing)->getY(currentPoint+1)));
+      if (s.is_degenerate() == false)
+        seg_list.push_back(s);
+      // else
+        // std::cout << "Degenerate segment skipped." << std::endl;
+    }
   }
   
-  std::cout << "input segments: " << seg_list.size() << std::endl;
+  // std::cout << "input segments: " << seg_list.size() << std::endl;
+  // Segment_list_2::const_iterator its;
+  // for (its = seg_list.begin(); its != seg_list.end(); ++its) {
+  //   std::cout << "Segment " << (*its) << std::endl;
+  //   std::cout << "   " << sqrt(CGAL::to_double(its->squared_length())) << std::endl;
+  // }
   
   Polyline_list_2 *output_list = new Polyline_list_2();
   // Polyline_list_2 output_list;
   CGAL::snap_rounding_2<Traits,Segment_list_2::const_iterator, Polyline_list_2>
-    (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 10);
+    (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 2);
 
   int counter = 0;
   Polyline_list_2::const_iterator iter1;
