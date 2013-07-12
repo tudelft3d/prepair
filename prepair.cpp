@@ -61,7 +61,7 @@ typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
 typedef CGAL::Triangulation_vertex_base_2<K> VB;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
-typedef CGAL::Triangulation_face_base_with_info_2<void *, K, FB> FBWI;
+typedef CGAL::Triangulation_face_base_with_info_2<unsigned char, K, FB> FBWI; // Meaning of the bitset: unused unused unused unused  unused unused exterior/interior unprocessed/processed
 typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
 typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
@@ -83,7 +83,7 @@ typedef std::list<Polyline_2>                    Polyline_list_2;
 std::list<OGRPolygon*>* repair(OGRGeometry* geometry);
 std::list<OGRPolygon*>* repair(Polyline_list_2* geometry);
 std::list<OGRPolygon*>* repair_tag_triangulation(Triangulation &triangulation);
-void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle);
+void tagOddEven(Triangulation &triangulation);
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
 void usage();
 Polyline_list_2* isr(OGRGeometry* geometry);
@@ -102,9 +102,9 @@ int main (int argc, const char * argv[]) {
     usage();
     return(0);
   }
-
+  
   OGRGeometry *geometry;
-
+  
   for (int argNum = 1; argNum < argc; ++argNum) {
     if (strcmp(argv[argNum], "--minarea") == 0) {
       MIN_AREA = atof(argv[argNum+1]);
@@ -113,7 +113,7 @@ int main (int argc, const char * argv[]) {
     //-- ISR snapping tolerance
     else if (strcmp(argv[argNum], "--isr") == 0) {
       ISR_TOLERANCE = atof(argv[argNum+1]);
-      ++argNum; 
+      ++argNum;
       // TODO : scale dataset if tolerance < 1.0
     }
     //-- reading from WKT passed directly
@@ -174,8 +174,8 @@ int main (int argc, const char * argv[]) {
   	  
     }
     else {
-      usage();   
-      return(0);   
+      usage();
+      return(0);
     }
   }
   
@@ -184,9 +184,9 @@ int main (int argc, const char * argv[]) {
   if (ISR_TOLERANCE != 0) {
     Polyline_list_2 *snappedgeom = isr(geometry);
     std::cout << "done." << std::endl;
-    outPolygons = repair(snappedgeom);    
+    outPolygons = repair(snappedgeom);
   }
-  else { 
+  else {
     outPolygons = repair(geometry);
   }
   
@@ -206,15 +206,15 @@ int main (int argc, const char * argv[]) {
       }
     }
     else {
-      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) 
-          multiPolygon->addGeometryDirectly(*it);
-    } 
+      for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it)
+        multiPolygon->addGeometryDirectly(*it);
+    }
     multiPolygon->exportToWkt(&outputWKT);
     std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
     // std::cout << std::endl << "Polygon repaired." << std::endl;
     
     //-- save to a shapefile
-    savetoshp(multiPolygon);    
+    savetoshp(multiPolygon);
     return 0;
   }
 }
@@ -226,7 +226,7 @@ void usage() {
   std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
   std::cout << "OR" << std::endl;
   std::cout << "Usage:   prepair --shp infile.shp (first polygon of infile.shp is processed)" << std::endl;
-
+  
 }
 
 
@@ -260,8 +260,8 @@ bool savetoshp(OGRMultiPolygon* multiPolygon) {
   // OGRFieldDefn oField("Name", OFTString);
   // oField.SetWidth(32);
   // if( layer->CreateField( &oField ) != OGRERR_NONE ) {
-    // std::cout << "Creating Name field failed." << std::endl;
-    // exit( 1 );
+  // std::cout << "Creating Name field failed." << std::endl;
+  // exit( 1 );
   // }
   // char szName[33];
   OGRFeature *feature = OGRFeature::CreateFeature(layer->GetLayerDefn());
@@ -283,16 +283,16 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
   polygon->closeRings();
   for (int currentPoint = 0; currentPoint < (polygon->getExteriorRing()->getNumPoints() - 1); ++currentPoint) {
     Segment_2 s = Segment_2( ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
-                              ISRPoint(polygon->getExteriorRing()->getX(currentPoint+1), polygon->getExteriorRing()->getY(currentPoint+1)));
+                            ISRPoint(polygon->getExteriorRing()->getX(currentPoint+1), polygon->getExteriorRing()->getY(currentPoint+1)));
     if (s.is_degenerate() == false)
       seg_list.push_back(s);
     // else
-      // std::cout << "degenerate segment" << std::endl;
-  }                        
-  // ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
+    // std::cout << "degenerate segment" << std::endl;
+  }
+  // ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
   //       polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()))
   // TODO: @Ken: I think you're creating twice the same edge here... no?
-                        
+  
   
   for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
     for (int currentPoint = 0; currentPoint < (polygon->getInteriorRing(currentRing)->getNumPoints() - 1); ++currentPoint) {
@@ -301,7 +301,7 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
       if (s.is_degenerate() == false)
         seg_list.push_back(s);
       // else
-        // std::cout << "Degenerate segment skipped." << std::endl;
+      // std::cout << "Degenerate segment skipped." << std::endl;
     }
   }
   
@@ -315,8 +315,8 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
   Polyline_list_2 *output_list = new Polyline_list_2();
   // Polyline_list_2 output_list;
   CGAL::snap_rounding_2<Traits,Segment_list_2::const_iterator, Polyline_list_2>
-    (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 2);
-
+  (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 2);
+  
   int counter = 0;
   Polyline_list_2::const_iterator iter1;
   for (iter1 = output_list->begin(); iter1 != output_list->end(); ++iter1) {
@@ -332,62 +332,74 @@ Polyline_list_2* isr(OGRGeometry* geometry) {
 }
 
 
-void tag(Triangulation &triangulation, void *interiorHandle, void *exteriorHandle) {
+void tagOddEven(Triangulation &triangulation) {
 	
-    // Clean tags
-    for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
-        currentFace->info() = NULL;
+  // Clean tags
+  for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
+    currentFace->info() = 0x00;
+  
+  // Initialise tagging
+  std::stack<Triangulation::Face_handle> interiorStack, exteriorStack;
+  exteriorStack.push(triangulation.infinite_face());
+  std::stack<Triangulation::Face_handle> *currentStack = &exteriorStack;
+  std::stack<Triangulation::Face_handle> *dualStack = &interiorStack;
+  unsigned char interiorHandle = 0x02;
+  unsigned char exteriorHandle = 0x00;
+  unsigned char currentHandle = exteriorHandle;
+  unsigned char dualHandle = interiorHandle;
+  
+  unsigned char processedMask = 0x01;
+  
+  // Until we finish
+  while (!interiorStack.empty() || !exteriorStack.empty()) {
     
-    // Initialise tagging
-    std::stack<Triangulation::Face_handle> interiorStack, exteriorStack;
-    exteriorStack.push(triangulation.infinite_face());
-    std::stack<Triangulation::Face_handle> *currentStack = &exteriorStack;
-    std::stack<Triangulation::Face_handle> *dualStack = &interiorStack;
-    void *currentHandle = exteriorHandle;
-    void *dualHandle = interiorHandle;
-    
-    // Until we finish
-    while (!interiorStack.empty() || !exteriorStack.empty()) {
-        
-        // Give preference to whatever we're already doing
-        while (!currentStack->empty()) {
-            Triangulation::Face_handle currentFace = currentStack->top();
+    // Give preference to whatever we're already doing
+    while (!currentStack->empty()) {
+      Triangulation::Face_handle currentFace = currentStack->top();
 			currentStack->pop();
-            if (currentFace->info() != NULL) continue;
-			currentFace->info() = currentHandle;
-            for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-              if (currentFace->neighbor(currentEdge)->info() == NULL) {
-                    if (currentFace->is_constrained(currentEdge)) 
-                      dualStack->push(currentFace->neighbor(currentEdge));
-                    else 
-                      currentStack->push(currentFace->neighbor(currentEdge));
-              }
-            }
+      if ((currentFace->info() & processedMask) == processedMask) continue;
+			currentFace->info() |= currentHandle | processedMask;
+      for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
+        if (currentFace->neighbor(currentEdge)->info() == 0) {
+          if (currentFace->is_constrained(currentEdge))
+            dualStack->push(currentFace->neighbor(currentEdge));
+          else
+            currentStack->push(currentFace->neighbor(currentEdge));
         }
-			
-        // Flip
-        if (currentHandle == exteriorHandle) {
-            currentHandle = interiorHandle;
-            dualHandle = exteriorHandle;
-            currentStack = &interiorStack;
-            dualStack = &exteriorStack;
-        } else {
-            currentHandle = exteriorHandle;
-            dualHandle = interiorHandle;
-            currentStack = &exteriorStack;
-            dualStack = &interiorStack;
-        }
+      }
+    }
+    
+    // Flip
+    if (currentHandle == exteriorHandle) {
+      currentHandle = interiorHandle;
+      dualHandle = exteriorHandle;
+      currentStack = &interiorStack;
+      dualStack = &exteriorStack;
+    } else {
+      currentHandle = exteriorHandle;
+      dualHandle = interiorHandle;
+      currentStack = &exteriorStack;
+      dualStack = &interiorStack;
+    }
 	}
 }
 
+void tagPointSet(Triangulation &triangulation, OGRGeometry* geometry) {
+  
+  // Clean tags
+  for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
+    currentFace->info() = NULL;
+  
+  
+}
 
 std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge) {
-    
-    std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
-    
-    // Check clockwise edge
-    if (!face->is_constrained(face->cw(edge)) && face->neighbor(face->cw(edge))->info() != NULL) {
-		face->neighbor(face->cw(edge))->info() = NULL;
+  
+  std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
+  
+  // Check clockwise edge
+  if (!face->is_constrained(face->cw(edge)) && face->neighbor(face->cw(edge))->info() != 0x00) {
+		face->neighbor(face->cw(edge))->info() = 0x00;
 		std::list<Triangulation::Vertex_handle> *v1 = getBoundary(face->neighbor(face->cw(edge)), face->neighbor(face->cw(edge))->index(face));
 		vertices->splice(vertices->end(), *v1);
 		delete v1;
@@ -397,14 +409,14 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 	vertices->push_back(face->vertex(edge));
 	
 	// Check counterclockwise edge
-    if (!face->is_constrained(face->ccw(edge)) && face->neighbor(face->ccw(edge))->info() != NULL) {
-		face->neighbor(face->ccw(edge))->info() = NULL;
+  if (!face->is_constrained(face->ccw(edge)) && face->neighbor(face->ccw(edge))->info() != 0x00) {
+		face->neighbor(face->ccw(edge))->info() = 0x00;
 		std::list<Triangulation::Vertex_handle> *v2 = getBoundary(face->neighbor(face->ccw(edge)), face->neighbor(face->ccw(edge))->index(face));
 		vertices->splice(vertices->end(), *v2);
 		delete v2;
 	}
 	
-    return vertices;
+  return vertices;
 }
 
 
@@ -418,64 +430,67 @@ std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
       
       OGRPolygon *polygon = (OGRPolygon *)geometry;
       for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
-        triangulation.insert_constraint(Point(polygon->getExteriorRing()->getX(currentPoint), 
-                                              polygon->getExteriorRing()->getY(currentPoint)),
-                                        Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()), 
-                                              polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
+        Triangulation::Vertex_handle va = triangulation.insert(Point(polygon->getExteriorRing()->getX(currentPoint),
+                                                                     polygon->getExteriorRing()->getY(currentPoint)));
+        Triangulation::Vertex_handle vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
+                                                                     polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
+        triangulation.insert_constraint(va, vb);
       } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-        for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint)
-          triangulation.insert_constraint(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint), 
-                                                polygon->getInteriorRing(currentRing)->getY(currentPoint)),
-                                          Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()), 
-                                                polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
+        for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
+          Triangulation::Vertex_handle va = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint),
+                                                                       polygon->getInteriorRing(currentRing)->getY(currentPoint)));
+          Triangulation::Vertex_handle vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
+                                                                       polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
+          triangulation.insert_constraint(va, vb);
+        }
       } break;
       
     } default:
       std::cout << "Error: Cannot understand input. Only polygons are supported." << std::endl;
       break;
-  } 
+  }
   
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
   return outPolygons;
 }
-  
-  
-  
+
+
+
 std::list<OGRPolygon*>* repair_tag_triangulation(Triangulation &triangulation) {
-    
+  
   // std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
   if (triangulation.number_of_faces() < 1) {
     return NULL;
   }
   
   // Tag
-  void *interior = malloc(sizeof(void *));
-  void *exterior = malloc(sizeof(void *));
-  tag(triangulation, interior, exterior);
+  tagOddEven(triangulation);
+  
+  unsigned char interiorMask = 0x02;
   
   // Reconstruct
   std::list<OGRPolygon*> *outPolygons = new std::list<OGRPolygon*>();
   for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
-
-    if (seedingFace->info() != interior) continue;
+    
+    if ((seedingFace->info() & interiorMask) != interiorMask) continue;
     
     // Get boundary
     std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
-    seedingFace->info() = NULL;
-    if (seedingFace->neighbor(2)->info() == interior) {
-      seedingFace->neighbor(2)->info() = NULL;
+    seedingFace->info() = 0x00;
+    if ((seedingFace->neighbor(2)->info() & interiorMask) == interiorMask) {
+      seedingFace->neighbor(2)->info() = 0x00;
       std::list<Triangulation::Vertex_handle> *l2 = getBoundary(seedingFace->neighbor(2), seedingFace->neighbor(2)->index(seedingFace));
       vertices->splice(vertices->end(), *l2);
       delete l2;
     } vertices->push_back(seedingFace->vertex(0));
-    if (seedingFace->neighbor(1)->info() == interior) {
-      seedingFace->neighbor(1)->info() = NULL;
+    if ((seedingFace->neighbor(1)->info() & interiorMask) == interiorMask) {
+      seedingFace->neighbor(1)->info() = 0x00;
       std::list<Triangulation::Vertex_handle> *l1 = getBoundary(seedingFace->neighbor(1), seedingFace->neighbor(1)->index(seedingFace));
       vertices->splice(vertices->end(), *l1);
       delete l1;
     } vertices->push_back(seedingFace->vertex(2));
-    if (seedingFace->neighbor(0)->info() == interior) {
-      seedingFace->neighbor(0)->info() = NULL;
+    if ((seedingFace->neighbor(0)->info() & interiorMask) == interiorMask) {
+      seedingFace->neighbor(0)->info() = 0x00;
       std::list<Triangulation::Vertex_handle> *l0 = getBoundary(seedingFace->neighbor(0), seedingFace->neighbor(0)->index(seedingFace));
       vertices->splice(vertices->end(), *l0);
       delete l0;
@@ -581,7 +596,7 @@ std::list<OGRPolygon*>* repair_tag_triangulation(Triangulation &triangulation) {
 std::list<OGRPolygon*>* repair(Polyline_list_2* seg_list) {
   // Triangulation
   Triangulation triangulation;
-
+  
   // int counter = 0;
   Polyline_list_2::const_iterator iter1;
   for (iter1 = seg_list->begin(); iter1 != seg_list->end(); iter1++) {
@@ -594,12 +609,10 @@ std::list<OGRPolygon*>* repair(Polyline_list_2* seg_list) {
       Point p1 = Point(CGAL::to_double(iter2->x()), CGAL::to_double(iter2->y()));
       ++iter2;
       Point p2 = Point(CGAL::to_double(iter2->x()), CGAL::to_double(iter2->y()));
-      triangulation.insert_constraint(p1, p2);  
+      triangulation.insert_constraint(p1, p2);
     }
   }
   
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
   return outPolygons;
 }
-    
-    
