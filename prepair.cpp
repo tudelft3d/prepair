@@ -46,6 +46,7 @@
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
 // CGAL snap rounding
+// TODO: Probably good to use the same kernels
 #include <CGAL/Cartesian.h>
 #include <CGAL/Quotient.h>
 #include <CGAL/MP_Float.h>
@@ -61,7 +62,8 @@ typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
 typedef CGAL::Triangulation_vertex_base_2<K> VB;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
-typedef CGAL::Triangulation_face_base_with_info_2<unsigned char, K, FB> FBWI; // Meaning of the bitset: unused unused unused unused  unused unused exterior/interior unprocessed/processed
+typedef CGAL::Triangulation_face_base_with_info_2<unsigned char, K, FB> FBWI; // Bitset: unused unused unused unused
+                                                                              // unused normal/border exterior/interior unprocessed/processed
 typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
 typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
@@ -89,12 +91,12 @@ void usage();
 Polyline_list_2* isr(OGRGeometry* geometry);
 bool savetoshp(OGRMultiPolygon* multiPolygon);
 
-
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
 double MIN_AREA = 0;
 double ISR_TOLERANCE = 0;
-
+bool wktout = false;
+bool shpout = false;
 
 int main (int argc, const char * argv[]) {
   
@@ -126,7 +128,7 @@ int main (int argc, const char * argv[]) {
       if (geometry == NULL) {
         std::cout << "Error: WKT is not valid" << std::endl;
         return 1;
-      }
+      } wktout = true;
     }
     //-- reading from WKT stored in first line of a text file
     else if (strcmp(argv[argNum], "-f") == 0) {
@@ -144,7 +146,7 @@ int main (int argc, const char * argv[]) {
       if (geometry == NULL) {
         std::cout << "Error: WKT is not valid" << std::endl;
         return 1;
-      }
+      } wktout = true;
     }
     //-- reading from a shapefile
     else if (strcmp(argv[argNum], "--shp") == 0) {
@@ -165,6 +167,7 @@ int main (int argc, const char * argv[]) {
       feature = dataLayer->GetNextFeature();
       if (feature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
         geometry = static_cast<OGRPolygon *>(feature->GetGeometryRef());feature->GetGeometryRef();
+        shpout = true;
         // std::cout << geometry->IsSimple() << std::endl;
       }
       else {
@@ -209,13 +212,16 @@ int main (int argc, const char * argv[]) {
       for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it)
         multiPolygon->addGeometryDirectly(*it);
     }
-    multiPolygon->exportToWkt(&outputWKT);
-    std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
-    // std::cout << std::endl << "Polygon repaired." << std::endl;
+    
+    if (wktout) {
+      multiPolygon->exportToWkt(&outputWKT);
+      std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+    }
     
     //-- save to a shapefile
-    savetoshp(multiPolygon);
-    return 0;
+    else if (shpout) {
+      savetoshp(multiPolygon);
+    } return 0;
   }
 }
 
@@ -343,12 +349,12 @@ void tagOddEven(Triangulation &triangulation) {
   exteriorStack.push(triangulation.infinite_face());
   std::stack<Triangulation::Face_handle> *currentStack = &exteriorStack;
   std::stack<Triangulation::Face_handle> *dualStack = &interiorStack;
-  unsigned char interiorHandle = 0x02;
-  unsigned char exteriorHandle = 0x00;
+  unsigned char processedMask = 0x01;
+  unsigned char interiorHandle = 0x03;
+  unsigned char exteriorHandle = 0x01;
   unsigned char currentHandle = exteriorHandle;
   unsigned char dualHandle = interiorHandle;
   
-  unsigned char processedMask = 0x01;
   
   // Until we finish
   while (!interiorStack.empty() || !exteriorStack.empty()) {
@@ -358,9 +364,9 @@ void tagOddEven(Triangulation &triangulation) {
       Triangulation::Face_handle currentFace = currentStack->top();
 			currentStack->pop();
       if ((currentFace->info() & processedMask) == processedMask) continue;
-			currentFace->info() |= currentHandle | processedMask;
+			currentFace->info() |= currentHandle;
       for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-        if (currentFace->neighbor(currentEdge)->info() == 0) {
+        if (currentFace->neighbor(currentEdge)->info() == 0x00) {
           if (currentFace->is_constrained(currentEdge))
             dualStack->push(currentFace->neighbor(currentEdge));
           else
@@ -388,7 +394,28 @@ void tagPointSet(Triangulation &triangulation, OGRGeometry* geometry) {
   
   // Clean tags
   for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
-    currentFace->info() = NULL;
+    currentFace->info() = 0x00;
+  
+  // Tag everything connected to the infinite face plus the triangles adjancent to those
+  std::stack<Triangulation::Face_handle> exteriorStack, interiorStack;
+  exteriorStack.push(triangulation.infinite_face());
+  unsigned char processedMask = 0x01;
+  unsigned char borderHandle = 0x07;
+  unsigned char exteriorHandle = 0x01;
+  while (!exteriorStack.empty()) {
+    Triangulation::Face_handle currentFace = exteriorStack.top();
+    exteriorStack.pop();
+    if ((currentFace->info() & processedMask) == processedMask) continue;
+    currentFace->info() |= exteriorHandle;
+    for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
+      if (currentFace->neighbor(currentEdge)->info() == 0x00) {
+        if (currentFace->is_constrained(currentEdge)) {
+          currentFace->neighbor(currentEdge)->info() |= borderHandle;
+          interiorStack.push(currentFace->neighbor(currentEdge));
+        } else exteriorStack.push(currentFace->neighbor(currentEdge));
+      }
+    }
+  }
   
   
 }
