@@ -90,6 +90,7 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 void usage();
 Polyline_list_2* isr(OGRGeometry* geometry);
 bool savetoshp(OGRMultiPolygon* multiPolygon);
+void compute_robustness(Triangulation &triangulation);
 
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
@@ -477,10 +478,24 @@ std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
       break;
   }
   
+  // compute_robustness(triangulation);
+  
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
   return outPolygons;
 }
 
+void compute_robustness(Triangulation &triangulation) {
+//   for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); ++curV) {
+//     std::cout << curV->point() << std::endl;    
+//     Triangulation::Vertex_circulator vc = t.incident_vertices(curV);
+//     done(vc);
+//     if (vc != 0) {
+//       do { std::cout << vc->point() << std::endl;
+//       }while(++vc != done);
+//     }
+//   }
+  std::cout << "robustness" << std::endl;
+}
 
 
 std::list<OGRPolygon*>* repair_tag_triangulation(Triangulation &triangulation) {
