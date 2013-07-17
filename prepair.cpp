@@ -69,13 +69,15 @@ typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
 typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
-typedef Triangulation::Point Point;
+typedef Triangulation::Point      Point;
+typedef K::Vector_2   Vector_2;
 
 // typedef CGAL::Quotient<CGAL::MP_Float>           Number_type;
 typedef CGAL::Quotient<CGAL::Gmpq>               Number_type;
 typedef CGAL::Cartesian<Number_type>             Kernel;
 typedef CGAL::Snap_rounding_traits_2<Kernel>     Traits;
 typedef Kernel::Segment_2                        Segment_2;
+
 typedef Kernel::Point_2                          ISRPoint;
 typedef std::list<Segment_2>                     Segment_list_2;
 typedef std::list<ISRPoint>                      Polyline_2;
@@ -216,7 +218,8 @@ int main (int argc, const char * argv[]) {
     
     if (wktout) {
       multiPolygon->exportToWkt(&outputWKT);
-      std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+      // std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+      std::cout << outputWKT;
     }
     
     //-- save to a shapefile
@@ -478,23 +481,40 @@ std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
       break;
   }
   
-  // compute_robustness(triangulation);
+  compute_robustness(triangulation);
   
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
   return outPolygons;
 }
 
 void compute_robustness(Triangulation &triangulation) {
-//   for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); ++curV) {
-//     std::cout << curV->point() << std::endl;    
-//     Triangulation::Vertex_circulator vc = t.incident_vertices(curV);
-//     done(vc);
-//     if (vc != 0) {
-//       do { std::cout << vc->point() << std::endl;
-//       }while(++vc != done);
-//     }
-//   }
-  std::cout << "robustness" << std::endl;
+  //-- vertex-vertex distances
+  Vector_2 dist;
+  double smallestdist = 1e99;
+  for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); curV++) {
+    // std::cout << "---" << curV->point() << "---" << std::endl;    
+    Triangulation::Vertex_circulator vc = triangulation.incident_vertices(curV);
+    Triangulation::Vertex_handle startv = vc;
+    vc++;
+    while (vc != startv) {
+      if (triangulation.is_infinite(vc) == false) { 
+        // std::cout << vc->point() << std::endl;
+        dist = curV->point() - vc->point();
+        // std::cout << "distance: " << dist.squared_length()  << std::endl;
+        if (dist.squared_length() < smallestdist)
+          smallestdist = dist.squared_length();
+      }
+      vc++;
+    }
+    // std::cout << startv->point() << std::endl;
+    dist = curV->point() - startv->point();
+    if (dist.squared_length() < smallestdist)
+      smallestdist = dist.squared_length();
+  }
+  std::cout << "Robustness vertex-vertex: " << smallestdist << std::endl;
+  
+  //-- vertex-edge distances
+  
 }
 
 
