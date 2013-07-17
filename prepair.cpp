@@ -115,7 +115,7 @@ int main (int argc, const char * argv[]) {
     }
     
     PolygonRepair prepair;
-    OGRMultiPolygon *outPolygons = prepair.repairOddEven(geometry);
+    OGRMultiPolygon *outPolygons = prepair.repairPointSet(geometry);
     
     //-- snap rounding of the input
     /*if (ISR_TOLERANCE != 0) {
