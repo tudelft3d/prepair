@@ -25,10 +25,16 @@
 
 class PolygonRepair {
 public:
-    void insertOuterConstraints(Triangulation &triangulation, OGRGeometry* geometry);
-    void insertConstraints(Triangulation &triangulation, OGRGeometry* geometry);
+    OGRMultiPolygon *repairOddEven(OGRGeometry *geometry);
+    OGRMultiPolygon *repairPointSet(OGRGeometry *geometry);
+    
+private:
+    void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry);
     void tagOddEven(Triangulation &triangulation);
-    void tagPointSet(Triangulation &triangulation, OGRGeometry* geometry);
+    void tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries);
+    OGRMultiPolygon *reconstruct(Triangulation &triangulation);
+    
+    std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
     void printEdges(Triangulation &triangulation);
 };
 

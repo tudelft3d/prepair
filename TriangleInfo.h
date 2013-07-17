@@ -24,19 +24,21 @@
 
 class TriangleInfo {
 public:
-  TriangleInfo();
-  
-  void clear();
-  bool hasBeenProcessed();
-  void hasBeenProcessed(bool processed);
-  bool isInInterior();
-  void isInInterior(bool Ininterior);
-  bool isOnBorder();
-  void isOnBorder(bool onBorder);
-  
+    TriangleInfo();
+    
+    void clear();
+    bool beenTagged();
+    void beenTagged(bool tagged);
+    bool isInInterior();
+    void isInInterior(bool inInterior);
+    bool isOnBorder();
+    void isOnBorder(bool onBorder);
+    bool beenReconstructed();
+    void beenReconstructed(bool reconstructed);
+    
 private:
-  unsigned char info; // Bitset: unused unused        unused            unused
-                      //         unused normal/border exterior/interior unprocessed/processed
+    unsigned char info; // Bitset: unused                          unused        unused            unused
+    //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
 };
 
 #endif

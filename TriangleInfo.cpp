@@ -29,12 +29,12 @@ void TriangleInfo::clear() {
   info = 0x00;
 }
 
-bool TriangleInfo::hasBeenProcessed() {
+bool TriangleInfo::beenTagged() {
   return (info & 0x01) == 0x01;
 }
 
-void TriangleInfo::hasBeenProcessed(bool processed) {
-  if (processed) info |= 0x01;
+void TriangleInfo::beenTagged(bool tagged) {
+  if (tagged) info |= 0x01;
   else info &= 0xfe;
 }
 
@@ -54,4 +54,13 @@ bool TriangleInfo::isOnBorder() {
 void TriangleInfo::isOnBorder(bool onBorder) {
   if (onBorder) info |= 0x05;
   else info = (info & 0xfb) | 0x01;
+}
+
+bool TriangleInfo::beenReconstructed() {
+    return (info & 0x08) == 0x08;
+}
+
+void TriangleInfo::beenReconstructed(bool reconstructed) {
+    if (reconstructed) reconstructed |= 0x08;
+    else info &= 0xf7;
 }
