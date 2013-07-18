@@ -61,6 +61,6 @@ bool TriangleInfo::beenReconstructed() {
 }
 
 void TriangleInfo::beenReconstructed(bool reconstructed) {
-    if (reconstructed) reconstructed |= 0x08;
+    if (reconstructed) info |= 0x08;
     else info &= 0xf7;
 }

@@ -80,6 +80,7 @@ OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator currentMultipolygon = repairedRings.begin();
          currentMultipolygon != repairedRings.end(); ++currentMultipolygon)
         insertConstraints(triangulation, currentMultipolygon->second);
+    printEdges(triangulation);
     tagPointSet(triangulation, repairedRings);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
     return outPolygons;
@@ -89,8 +90,6 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
     Triangulation::Vertex_handle va, vb;
     Triangulation::Face_handle faceOfEdge;
     int indexOfEdge;
-    
-    triangulation.clear();
     
     switch (geometry->getGeometryType()) {
             
@@ -263,6 +262,10 @@ void PolygonRepair::tagOddEven(Triangulation &triangulation) {
 void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries) {
     std::cout << "PolygonRepair::tagPointSet" << std::endl;
     
+    // Clean tags
+    for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
+        currentFace->info().clear();
+    
     std::stack<Triangulation::Face_handle> borderTriangles, taggingStack, untaggingStack;
     Triangulation::Vertices_in_constraint_iterator currentVertex, nextVertex, lastVertex;
     Triangulation::Vertex_handle va, vb;
@@ -423,7 +426,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                                                 polygon->getExteriorRing()->getY(currentPoint)));
                 vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                                 polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
-                std::cerr << "Tagging contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
+                std::cerr << "Carving contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                 if (triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                     if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
                         currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
@@ -433,7 +436,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                         if (*currentVertex == va) sameOrder = true;
                         else sameOrder = false;
                         while (nextVertex != lastVertex) {
-                            if (sameOrder) {
+                            if (!sameOrder) {
                                 if (!triangulation.is_edge(*currentVertex, *nextVertex, faceOfSubedge, indexOfSubedge)) {
                                     std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
                                     return;
@@ -482,7 +485,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                             if (*currentVertex == va) sameOrder = true;
                             else sameOrder = false;
                             while (nextVertex != lastVertex) {
-                                if (!sameOrder) {
+                                if (sameOrder) {
                                     if (!triangulation.is_edge(*currentVertex, *nextVertex, faceOfSubedge, indexOfSubedge)) {
                                         std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
                                         return;
@@ -547,6 +550,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
 }
 
 OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
+    std::cout << "PolygonRepair::reconstruct" << std::endl;
     
     // std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
     if (triangulation.number_of_faces() < 1) {
@@ -557,29 +561,46 @@ OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
     OGRMultiPolygon *outPolygons = new OGRMultiPolygon();
     for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
         
-        if (!seedingFace->info().isInInterior()) continue;
+        if (!seedingFace->info().isInInterior() || seedingFace->info().beenReconstructed()) continue;
+        std::cout << "Seeding face: ";
+        printTriangle(seedingFace);
+        std::cout << std::endl;
+        seedingFace->info().beenReconstructed(true);
+        if (!seedingFace->info().beenReconstructed()) {
+            std::cout << "ERROR! Should be marked as reconstructed!!!" << std::endl;
+        }
         
         // Get boundary
         std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
-        seedingFace->info().clear();
-        if (seedingFace->neighbor(2)->info().isInInterior()) {
-            seedingFace->neighbor(2)->info().clear();
+        if (seedingFace->neighbor(2)->info().isInInterior() && !seedingFace->neighbor(2)->info().beenReconstructed()) {
+            seedingFace->neighbor(2)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l2 = getBoundary(seedingFace->neighbor(2), seedingFace->neighbor(2)->index(seedingFace));
+            std::cout << "Putting ";
+            printChain(*l2);
             vertices->splice(vertices->end(), *l2);
             delete l2;
-        } vertices->push_back(seedingFace->vertex(0));
-        if (seedingFace->neighbor(1)->info().isInInterior()) {
-            seedingFace->neighbor(1)->info().clear();
+        } std::cout << "Inserting " << seedingFace->vertex(0)->point() << std::endl;
+        vertices->push_back(seedingFace->vertex(0));
+        if (seedingFace->neighbor(1)->info().isInInterior() && !seedingFace->neighbor(1)->info().beenReconstructed()) {
+            seedingFace->neighbor(1)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l1 = getBoundary(seedingFace->neighbor(1), seedingFace->neighbor(1)->index(seedingFace));
+            std::cout << "Putting ";
+            printChain(*l1);
             vertices->splice(vertices->end(), *l1);
             delete l1;
-        } vertices->push_back(seedingFace->vertex(2));
-        if (seedingFace->neighbor(0)->info().isInInterior()) {
-            seedingFace->neighbor(0)->info().clear();
+        } std::cout << "Inserting " << seedingFace->vertex(2)->point() << std::endl;
+        vertices->push_back(seedingFace->vertex(2));
+        if (seedingFace->neighbor(0)->info().isInInterior() && !seedingFace->neighbor(0)->info().beenReconstructed()) {
+            seedingFace->neighbor(0)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l0 = getBoundary(seedingFace->neighbor(0), seedingFace->neighbor(0)->index(seedingFace));
+            std::cout << "Putting ";
+            printChain(*l0);
             vertices->splice(vertices->end(), *l0);
             delete l0;
-        } vertices->push_back(seedingFace->vertex(1));
+        } std::cout << "Inserting " << seedingFace->vertex(1)->point() << std::endl;
+        vertices->push_back(seedingFace->vertex(1));
+        std::cout << "Chain: ";
+        printChain(*vertices);
         
         // Find cutting vertices
         std::set<Triangulation::Vertex_handle> visitedVertices;
@@ -677,28 +698,33 @@ OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
 }
 
 std::list<Triangulation::Vertex_handle> *PolygonRepair::getBoundary(Triangulation::Face_handle face, int edge) {
+    std::cout << "PolygonRepair::getBoundary" << std::endl;
     
     std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
     
     // Check clockwise edge
-    if (!face->is_constrained(face->cw(edge)) && face->neighbor(face->cw(edge))->info().beenReconstructed()) {
-		face->neighbor(face->cw(edge))->info().clear();
+    //std::cout << "CW" << std::endl;
+    if (face->neighbor(face->cw(edge))->info().isInInterior() && !face->neighbor(face->cw(edge))->info().beenReconstructed()) {
+		face->neighbor(face->cw(edge))->info().beenReconstructed(true);
 		std::list<Triangulation::Vertex_handle> *v1 = getBoundary(face->neighbor(face->cw(edge)), face->neighbor(face->cw(edge))->index(face));
 		vertices->splice(vertices->end(), *v1);
 		delete v1;
 	}
 	
 	// Add central vertex
+    //std::cout << "CV: " << face->vertex(edge)->point() << std::endl;
 	vertices->push_back(face->vertex(edge));
 	
 	// Check counterclockwise edge
-    if (!face->is_constrained(face->ccw(edge)) && face->neighbor(face->ccw(edge))->info().beenReconstructed()) {
-		face->neighbor(face->ccw(edge))->info().clear();
+    //std::cout << "CCW" << std::endl;
+    if (face->neighbor(face->ccw(edge))->info().isInInterior() && !face->neighbor(face->ccw(edge))->info().beenReconstructed()) {
+		face->neighbor(face->ccw(edge))->info().beenReconstructed(true);
 		std::list<Triangulation::Vertex_handle> *v2 = getBoundary(face->neighbor(face->ccw(edge)), face->neighbor(face->ccw(edge))->index(face));
 		vertices->splice(vertices->end(), *v2);
 		delete v2;
 	}
 	
+    //std::cout << "Done." << std::endl;
     return vertices;
 }
 
@@ -714,4 +740,10 @@ void PolygonRepair::printEdges(Triangulation &triangulation) {
 
 void PolygonRepair::printTriangle(Triangulation::Face_handle triangle) {
     std::cout << "TRIANGLE(" << triangle->vertex(0)->point() << ", " << triangle->vertex(1)->point() << ", " << triangle->vertex(2)->point() << ")";
+}
+
+void PolygonRepair::printChain(std::list<Triangulation::Vertex_handle> &chain) {
+    for (std::list<Triangulation::Vertex_handle>::iterator currentVertex = chain.begin(); currentVertex != chain.end(); ++currentVertex) {
+        std::cout << (*currentVertex)->point() << ", ";
+    } std::cout << std::endl;
 }
