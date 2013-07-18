@@ -100,7 +100,7 @@ double MIN_AREA = 0;
 double ISR_TOLERANCE = 0;
 bool wktout = false;
 bool shpout = false;
-bool robustness = false;
+bool ROBUSTNESS = false;
 
 int main (int argc, const char * argv[]) {
   
@@ -113,7 +113,7 @@ int main (int argc, const char * argv[]) {
   
   for (int argNum = 1; argNum < argc; ++argNum) {
     if (strcmp(argv[argNum], "--robustness") == 0) {
-      robustness = true;
+      ROBUSTNESS = true;
     }    
     //-- mininum area to keep in output
     else if (strcmp(argv[argNum], "--minarea") == 0) {
@@ -486,7 +486,7 @@ std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
       break;
   }
   
-  if (robustness == true) 
+  if (ROBUSTNESS == true) 
     std::cout << "Robustness of input polygon: " << sqrt(compute_robustness(triangulation)) <<std::endl;
   
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
