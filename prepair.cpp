@@ -92,7 +92,7 @@ std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle 
 void usage();
 Polyline_list_2* isr(OGRGeometry* geometry);
 bool savetoshp(OGRMultiPolygon* multiPolygon);
-void compute_robustness(Triangulation &triangulation);
+double compute_robustness(Triangulation &triangulation);
 
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
@@ -100,6 +100,7 @@ double MIN_AREA = 0;
 double ISR_TOLERANCE = 0;
 bool wktout = false;
 bool shpout = false;
+bool robustness = false;
 
 int main (int argc, const char * argv[]) {
   
@@ -111,7 +112,11 @@ int main (int argc, const char * argv[]) {
   OGRGeometry *geometry;
   
   for (int argNum = 1; argNum < argc; ++argNum) {
-    if (strcmp(argv[argNum], "--minarea") == 0) {
+    if (strcmp(argv[argNum], "--robustness") == 0) {
+      robustness = true;
+    }    
+    //-- mininum area to keep in output
+    else if (strcmp(argv[argNum], "--minarea") == 0) {
       MIN_AREA = atof(argv[argNum+1]);
       ++argNum;
     }
@@ -481,16 +486,19 @@ std::list<OGRPolygon*>* repair(OGRGeometry* geometry) {
       break;
   }
   
-  compute_robustness(triangulation);
+  if (robustness == true) 
+    std::cout << "Robustness of input polygon: " << sqrt(compute_robustness(triangulation)) <<std::endl;
   
   std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
   return outPolygons;
 }
 
-void compute_robustness(Triangulation &triangulation) {
-  //-- vertex-vertex distances
-  Vector_2 dist;
+
+double compute_robustness(Triangulation &triangulation) {
   double smallestdist = 1e99;
+  
+  //-- vertex-vertex distances
+  Vector_2 dist;  
   for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); curV++) {
     // std::cout << "---" << curV->point() << "---" << std::endl;    
     Triangulation::Vertex_circulator vc = triangulation.incident_vertices(curV);
@@ -506,15 +514,38 @@ void compute_robustness(Triangulation &triangulation) {
       }
       vc++;
     }
-    // std::cout << startv->point() << std::endl;
     dist = curV->point() - startv->point();
     if (dist.squared_length() < smallestdist)
       smallestdist = dist.squared_length();
   }
-  std::cout << "Robustness vertex-vertex: " << smallestdist << std::endl;
-  
+
   //-- vertex-edge distances
-  
+  for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); curV++) {
+    // std::cout << "---" << curV->point() << "---" << std::endl;    
+    Triangulation::Face_circulator fc = triangulation.incident_faces(curV);
+    Triangulation::Face_handle startf = fc;
+    fc++;
+    while (fc != startf) {
+      if (triangulation.is_infinite(fc) == false) {
+        int i = fc->index(curV);
+        if (fc->is_constrained(i)) { 
+          double d = squared_distance(triangulation.segment(fc, i), fc->vertex(i)->point());
+          if (d < smallestdist)
+            smallestdist = d;
+        }
+      }
+      fc++;
+    }
+    if (triangulation.is_infinite(startf) == false) {
+      int i = startf->index(curV);
+      if (startf->is_constrained(i)) { 
+        double d = squared_distance(triangulation.segment(startf, i), startf->vertex(i)->point());
+        if (d < smallestdist)
+          smallestdist = d;
+      }
+    }
+  }
+  return smallestdist;
 }
 
 
