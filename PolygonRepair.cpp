@@ -86,6 +86,19 @@ OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
     return outPolygons;
 }
 
+void PolygonRepair::removeSmallPolygons(OGRMultiPolygon *outPolygons, double minArea) {
+    std::cout << "Removing polygons smaller than " << minArea << " unit^2." << std::endl;
+    for (int currentPolygon = outPolygons->getNumGeometries()-1; currentPolygon >= 0; --currentPolygon) {
+        if (static_cast<OGRPolygon *>(outPolygons->getGeometryRef(currentPolygon))->get_Area() < minArea) {
+            outPolygons->removeGeometry(currentPolygon);
+        }
+    }
+}
+
+OGRMultiPolygon *PolygonRepair::isr(OGRGeometry *geometry) {
+    
+}
+
 void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry* geometry) {
     Triangulation::Vertex_handle va, vb;
     Triangulation::Face_handle faceOfEdge;

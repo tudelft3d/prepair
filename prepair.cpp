@@ -129,18 +129,9 @@ int main (int argc, const char * argv[]) {
     
     
     char *outputWKT;
-    /*if (MIN_AREA > 0) {
-        std::cout << "Removing polygons smaller than " << MIN_AREA << " unit^2." << std::endl;
-        for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it) {
-            if ((*it)->get_Area() > MIN_AREA) {
-                multiPolygon->addGeometryDirectly(*it);
-            }
-        }
+    if (MIN_AREA > 0) {
+        prepair.removeSmallPolygons(outPolygons, MIN_AREA);
     }
-    else {
-        for (std::list<OGRPolygon*>::iterator it = outPolygons->begin(); it != outPolygons->end(); ++it)
-            multiPolygon->addGeometryDirectly(*it);
-    }*/
     
     if (wktout) {
         outPolygons->exportToWkt(&outputWKT);

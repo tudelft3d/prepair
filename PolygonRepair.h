@@ -27,6 +27,8 @@ class PolygonRepair {
 public:
     OGRMultiPolygon *repairOddEven(OGRGeometry *geometry);
     OGRMultiPolygon *repairPointSet(OGRGeometry *geometry);
+    void removeSmallPolygons(OGRMultiPolygon *outPolygons, double minArea);
+    OGRMultiPolygon *isr(OGRGeometry *geometry);
     
 private:
     void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry);

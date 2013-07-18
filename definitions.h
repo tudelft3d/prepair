@@ -51,12 +51,6 @@
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
-
-// CGAL snap rounding
-// TODO: Probably good to use the same kernels
-#include <CGAL/Cartesian.h>
-#include <CGAL/Quotient.h>
-#include <CGAL/MP_Float.h>
 #include <CGAL/Snap_rounding_traits_2.h>
 #include <CGAL/Snap_rounding_2.h>
 
@@ -75,8 +69,10 @@ typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
 typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
 typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
+typedef CGAL::Snap_rounding_traits_2<K> SRT;
 
 typedef Triangulation::Point Point;
+typedef K::Segment_2 Segment;
 
 // Non CGAL types
 typedef std::vector<std::pair<std::vector<Triangulation::Vertex_handle>, std::vector<std::vector<Triangulation::Vertex_handle> > > > TaggingVector;
