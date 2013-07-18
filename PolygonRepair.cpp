@@ -27,36 +27,46 @@ OGRMultiPolygon *PolygonRepair::repairOddEven(OGRGeometry *geometry) {
     insertConstraints(triangulation, geometry);
     tagOddEven(triangulation);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
+    char *outputWKT;
+    outPolygons->OGRGeometryCollection::exportToWkt(&outputWKT);
+    std::cout << outputWKT << std::endl;
     return outPolygons;
 }
 
 OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
+    std::cerr << "PolygonRepair::repairPointSet" << std::endl;
     std::list<std::pair<bool, OGRMultiPolygon *> > repairedRings;   // bool indicates if outer/inner are flipped
     
     switch (geometry->getGeometryType()) {
             
         case wkbLineString: {
+            std::cout << "Repairing ring..." << std::endl;
             repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(geometry)));
             break;
         }
             
         case wkbPolygon: {
             OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
-            if (polygon->getExteriorRing() != NULL)
+            if (polygon->getExteriorRing() != NULL) {
+                std::cout << "Repairing polygon outer ring..." << std::endl;
                 repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(polygon->getExteriorRing())));
-            for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing)
+            } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+                std::cout << "Repairing polygon inner ring..." << std::endl;
                 repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(true, repairOddEven(polygon->getInteriorRing(currentRing))));
-            break;
+            } break;
         }
             
         case wkbMultiPolygon: {
             OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(geometry);
             for (int currentPolygon = 0; currentPolygon < multipolygon->getNumGeometries(); ++currentPolygon) {
                 OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(currentPolygon));
-                if (polygon->getExteriorRing() != NULL)
+                if (polygon->getExteriorRing() != NULL) {
+                    std::cout << "Repairing multipolygon outer ring..." << std::endl;
                     repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(polygon->getExteriorRing())));
-                for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing)
+                } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+                    std::cout << "Repairing multipolygon inner ring..." << std::endl;
                     repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(true, repairOddEven(polygon->getInteriorRing(currentRing))));
+                }
             } break;
         }
             
@@ -202,6 +212,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
 }
 
 void PolygonRepair::tagOddEven(Triangulation &triangulation) {
+    std::cout << "PolygonRepair::tagOddEven" << std::endl;
 	
     // Clean tags
     for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
@@ -224,7 +235,11 @@ void PolygonRepair::tagOddEven(Triangulation &triangulation) {
 			currentStack->pop();
             if (currentFace->info().beenTagged()) continue;
 			currentFace->info().isInInterior(labellingInterior);
-            for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
+            if (labellingInterior) {
+                std::cout << "Tagged ";
+                printTriangle(currentFace);
+                std::cout << std::endl;
+            } for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
                 if (!currentFace->neighbor(currentEdge)->info().beenTagged()) {
                     if (currentFace->is_constrained(currentEdge))
                         dualStack->push(currentFace->neighbor(currentEdge));
@@ -246,7 +261,9 @@ void PolygonRepair::tagOddEven(Triangulation &triangulation) {
 }
 
 void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries) {
-    std::stack<Triangulation::Face_handle> borderTriangles, taggingStack;
+    std::cout << "PolygonRepair::tagPointSet" << std::endl;
+    
+    std::stack<Triangulation::Face_handle> borderTriangles, taggingStack, untaggingStack;
     Triangulation::Vertices_in_constraint_iterator currentVertex, nextVertex, lastVertex;
     Triangulation::Vertex_handle va, vb;
     Triangulation::Face_handle faceOfEdge, faceOfSubedge;
@@ -254,6 +271,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
     bool sameOrder;
     
     // Add all repaired outer rings
+    std::cout << "Flooding outer rings..." << std::endl;
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator multipolygon = geometries.begin();
          multipolygon != geometries.end(); ++multipolygon) {
         for (int currentPolygon = 0; currentPolygon < multipolygon->second->getNumGeometries(); ++currentPolygon) {
@@ -262,6 +280,145 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
             
             // Outer
             if (!multipolygon->first) for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
+                va = triangulation.insert(Point(polygon->getExteriorRing()->getX(currentPoint),
+                                                polygon->getExteriorRing()->getY(currentPoint)));
+                vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
+                                                polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
+                std::cerr << "Tagging contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
+                if (triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
+                    if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
+                        currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+                        nextVertex = currentVertex;
+                        ++nextVertex;
+                        lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+                        if (*currentVertex == va) sameOrder = true;
+                        else sameOrder = false;
+                        while (nextVertex != lastVertex) {
+                            if (!sameOrder) {
+                                if (!triangulation.is_edge(*currentVertex, *nextVertex, faceOfSubedge, indexOfSubedge)) {
+                                    std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
+                                    return;
+                                }
+                            } else {
+                                if (!triangulation.is_edge(*nextVertex, *currentVertex, faceOfSubedge, indexOfSubedge)) {
+                                    std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
+                                    return;
+                                }
+                            } currentVertex = nextVertex;
+                            ++nextVertex;
+                            std::cout << "Marked in internal border: ";
+                            printTriangle(faceOfSubedge);
+                            std::cout << std::endl;
+                            std::cout << "Marked in external border: ";
+                            printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
+                            std::cout << std::endl;
+                            borderTriangles.push(faceOfSubedge);
+                            faceOfSubedge->info().isOnBorder(true);
+                            borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                            faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
+                            taggingStack.push(faceOfSubedge);
+                        }
+                    } else {
+                        std::cout << "\tNot constrained anymore. Skipping..." << std::endl;
+                    }
+                } else {
+                    std::cout << "\tNot an edge anymore. Skipping..." << std::endl;
+                }
+            }
+            
+            // Inner
+            else for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+                for (int currentPoint = 0; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
+                    va = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint),
+                                                    polygon->getInteriorRing(currentRing)->getY(currentPoint)));
+                    vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
+                                                    polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
+                    std::cerr << "Tagging contraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
+                    if (triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
+                        if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
+                            currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+                            nextVertex = currentVertex;
+                            ++nextVertex;
+                            lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+                            if (*currentVertex == va) sameOrder = true;
+                            else sameOrder = false;
+                            while (nextVertex != lastVertex) {
+                                if (sameOrder) {
+                                    if (!triangulation.is_edge(*currentVertex, *nextVertex, faceOfSubedge, indexOfSubedge)) {
+                                        std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
+                                        return;
+                                    }
+                                } else {
+                                    if (!triangulation.is_edge(*nextVertex, *currentVertex, faceOfSubedge, indexOfSubedge)) {
+                                        std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
+                                        return;
+                                    }
+                                } currentVertex = nextVertex;
+                                ++nextVertex;
+                                std::cout << "Marked in internal border: ";
+                                printTriangle(faceOfSubedge);
+                                std::cout << std::endl;
+                                std::cout << "Marked in external border: ";
+                                printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
+                                std::cout << std::endl;
+                                borderTriangles.push(faceOfSubedge);
+                                faceOfSubedge->info().isOnBorder(true);
+                                borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                                faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
+                                taggingStack.push(faceOfSubedge);
+                            }
+                        } else {
+                            std::cout << "\tNot constrained anymore. Skipping..." << std::endl;
+                        }
+                    } else {
+                        std::cout << "\tNot an edge anymore. Skipping..." << std::endl;
+                    }
+                }
+            }
+            
+            // Expand the tags
+            untaggingStack = std::stack<Triangulation::Face_handle>();
+            while (!taggingStack.empty()) {
+                Triangulation::Face_handle currentFace = taggingStack.top();
+                taggingStack.pop();
+                if (currentFace->info().beenTagged()) continue;
+                std::cout << "Tagging ";
+                printTriangle(currentFace);
+                std::cout << std::endl;
+                currentFace->info().isInInterior(true);
+                untaggingStack.push(currentFace);
+                for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
+                    if (!currentFace->neighbor(currentEdge)->info().isOnBorder() &&
+                        !currentFace->neighbor(currentEdge)->info().beenTagged()) {
+                        taggingStack.push(currentFace->neighbor(currentEdge));
+                    }
+                }
+            }
+            
+            // Remove border tags
+            while (!borderTriangles.empty()) {
+                borderTriangles.top()->info().isOnBorder(false);
+                borderTriangles.pop();
+            }
+            
+            // Remove tagged tags
+            while (!untaggingStack.empty()) {
+                untaggingStack.top()->info().beenTagged(false);
+                untaggingStack.pop();
+            }
+        }
+    }
+    
+    // TODO: Subtract all repaired inner rings
+    std::cout << "Carving inner rings..." << std::endl;
+    for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator multipolygon = geometries.begin();
+         multipolygon != geometries.end(); ++multipolygon) {
+        for (int currentPolygon = 0; currentPolygon < multipolygon->second->getNumGeometries(); ++currentPolygon) {
+            OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->second->getGeometryRef(currentPolygon));
+            taggingStack = std::stack<Triangulation::Face_handle>();
+            
+            // Outer
+            if (multipolygon->first) for (int currentPoint = 0; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
                 va = triangulation.insert(Point(polygon->getExteriorRing()->getX(currentPoint),
                                                 polygon->getExteriorRing()->getY(currentPoint)));
                 vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
@@ -288,8 +445,16 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                                 }
                             } currentVertex = nextVertex;
                             ++nextVertex;
+                            std::cout << "Marked in internal border: ";
+                            printTriangle(faceOfSubedge);
+                            std::cout << std::endl;
+                            std::cout << "Marked in external border: ";
+                            printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
+                            std::cout << std::endl;
                             borderTriangles.push(faceOfSubedge);
+                            faceOfSubedge->info().isOnBorder(true);
                             borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                            faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                             taggingStack.push(faceOfSubedge);
                         }
                     } else {
@@ -329,8 +494,16 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                                     }
                                 } currentVertex = nextVertex;
                                 ++nextVertex;
+                                std::cout << "Marked in internal border: ";
+                                printTriangle(faceOfSubedge);
+                                std::cout << std::endl;
+                                std::cout << "Marked in external border: ";
+                                printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
+                                std::cout << std::endl;
                                 borderTriangles.push(faceOfSubedge);
+                                faceOfSubedge->info().isOnBorder(true);
                                 borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                                faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                                 taggingStack.push(faceOfSubedge);
                             }
                         } else {
@@ -343,13 +516,16 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
             }
             
             // Expand the tags
+            untaggingStack = std::stack<Triangulation::Face_handle>();
             while (!taggingStack.empty()) {
                 Triangulation::Face_handle currentFace = taggingStack.top();
                 taggingStack.pop();
                 if (currentFace->info().beenTagged()) continue;
-                currentFace->info().isInInterior(true);
+                currentFace->info().isInInterior(false);
+                untaggingStack.push(currentFace);
                 for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-                    if (!currentFace->neighbor(currentEdge)->info().isOnBorder()) {
+                    if (!currentFace->neighbor(currentEdge)->info().isOnBorder() &&
+                        !currentFace->neighbor(currentEdge)->info().beenTagged()) {
                         taggingStack.push(currentFace->neighbor(currentEdge));
                     }
                 }
@@ -360,10 +536,14 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                 borderTriangles.top()->info().isOnBorder(false);
                 borderTriangles.pop();
             }
+            
+            // Remove tagged tags
+            while (!untaggingStack.empty()) {
+                untaggingStack.top()->info().beenTagged(false);
+                untaggingStack.pop();
+            }
         }
     }
-    
-    // TODO: Subtract all repaired inner rings
 }
 
 OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
@@ -530,4 +710,8 @@ void PolygonRepair::printEdges(Triangulation &triangulation) {
         if (triangulation.is_constrained(*currentEdge))
             std::cout << "\t<" << currentEdge->first->vertex((currentEdge->second+1)%3)->point() << ", " << currentEdge->first->vertex((currentEdge->second+2)%3)->point() << ">" << std::endl;
     }
+}
+
+void PolygonRepair::printTriangle(Triangulation::Face_handle triangle) {
+    std::cout << "TRIANGLE(" << triangle->vertex(0)->point() << ", " << triangle->vertex(1)->point() << ", " << triangle->vertex(2)->point() << ")";
 }

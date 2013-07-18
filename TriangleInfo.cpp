@@ -52,8 +52,8 @@ bool TriangleInfo::isOnBorder() {
 }
 
 void TriangleInfo::isOnBorder(bool onBorder) {
-  if (onBorder) info |= 0x05;
-  else info = (info & 0xfb) | 0x01;
+  if (onBorder) info |= 0x04;
+  else info &= 0xfb;
 }
 
 bool TriangleInfo::beenReconstructed() {

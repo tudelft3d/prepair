@@ -36,6 +36,7 @@ private:
     
     std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
     void printEdges(Triangulation &triangulation);
+    void printTriangle(Triangulation::Face_handle triangle);
 };
 
 #endif
