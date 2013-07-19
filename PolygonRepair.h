@@ -31,7 +31,7 @@ public:
     OGRMultiPolygon *isr(OGRGeometry *geometry);
     
 private:
-    void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry);
+    void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry, bool removeOverlappingConstraints = true);
     void tagOddEven(Triangulation &triangulation);
     void tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries);
     OGRMultiPolygon *reconstruct(Triangulation &triangulation);
