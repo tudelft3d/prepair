@@ -28,15 +28,19 @@ public:
     OGRMultiPolygon *repairOddEven(OGRGeometry *geometry);
     OGRMultiPolygon *repairPointSet(OGRGeometry *geometry);
     void removeSmallPolygons(OGRMultiPolygon *outPolygons, double minArea);
-    OGRMultiPolygon *isr(OGRGeometry *geometry);
+    OGRMultiPolygon *isr(OGRGeometry *geometry, double tolerance);
+    double computeRobustness();
     
 private:
+    Triangulation triangulation;
+    
     void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry, bool removeOverlappingConstraints = true);
     void tagOddEven(Triangulation &triangulation);
     void tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries);
     OGRMultiPolygon *reconstruct(Triangulation &triangulation);
-    
     std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
+    
+    // Debug functions
     void printEdges(Triangulation &triangulation);
     void printTriangle(Triangulation::Face_handle triangle);
     void printChain(std::list<Triangulation::Vertex_handle> &chain);

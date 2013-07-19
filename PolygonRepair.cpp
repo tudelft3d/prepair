@@ -22,25 +22,18 @@
 #include "PolygonRepair.h"
 
 OGRMultiPolygon *PolygonRepair::repairOddEven(OGRGeometry *geometry) {
-    //std::cerr << "PolygonRepair::repairOddEven" << std::endl;
-    Triangulation triangulation;
     insertConstraints(triangulation, geometry);
     tagOddEven(triangulation);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
-    char *outputWKT;
-    outPolygons->OGRGeometryCollection::exportToWkt(&outputWKT);
-    std::cout << outputWKT << std::endl;
     return outPolygons;
 }
 
 OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
-    //std::cerr << "PolygonRepair::repairPointSet" << std::endl;
     std::list<std::pair<bool, OGRMultiPolygon *> > repairedRings;   // bool indicates if outer/inner are flipped
     
     switch (geometry->getGeometryType()) {
             
         case wkbLineString: {
-            //std::cout << "Repairing ring..." << std::endl;
             repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(geometry)));
             break;
         }
@@ -48,10 +41,8 @@ OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
         case wkbPolygon: {
             OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
             if (polygon->getExteriorRing() != NULL) {
-                //std::cout << "Repairing polygon outer ring..." << std::endl;
                 repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(polygon->getExteriorRing())));
             } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-                //std::cout << "Repairing polygon inner ring..." << std::endl;
                 repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(true, repairOddEven(polygon->getInteriorRing(currentRing))));
             } break;
         }
@@ -61,26 +52,22 @@ OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
             for (int currentPolygon = 0; currentPolygon < multipolygon->getNumGeometries(); ++currentPolygon) {
                 OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(currentPolygon));
                 if (polygon->getExteriorRing() != NULL) {
-                    //std::cout << "Repairing multipolygon outer ring..." << std::endl;
                     repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(false, repairOddEven(polygon->getExteriorRing())));
                 } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-                    //std::cout << "Repairing multipolygon inner ring..." << std::endl;
                     repairedRings.push_back(std::pair<bool, OGRMultiPolygon *>(true, repairOddEven(polygon->getInteriorRing(currentRing))));
                 }
             } break;
         }
             
         default:
-            std::cerr << "PolygonRepair::repairPointSet: Cannot understand input. Only polygons are supported." << std::endl;
+            std::cerr << "PolygonRepair::repairPointSet: Cannot understand input." << std::endl;
             return new OGRMultiPolygon();
             break;
     }
     
-    Triangulation triangulation;
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator currentMultipolygon = repairedRings.begin();
          currentMultipolygon != repairedRings.end(); ++currentMultipolygon)
         insertConstraints(triangulation, currentMultipolygon->second, false);
-    printEdges(triangulation);
     tagPointSet(triangulation, repairedRings);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
     return outPolygons;
@@ -95,8 +82,196 @@ void PolygonRepair::removeSmallPolygons(OGRMultiPolygon *outPolygons, double min
     }
 }
 
-OGRMultiPolygon *PolygonRepair::isr(OGRGeometry *geometry) {
-    return NULL;
+OGRMultiPolygon *PolygonRepair::isr(OGRGeometry *geometry, double tolerance) {
+    
+    // Convert to multipolygon
+    OGRMultiPolygon *multipolygon = new OGRMultiPolygon();
+    switch (geometry->getGeometryType()) {
+        case wkbLineString: {
+            OGRLineString *oldRing = static_cast<OGRLineString *>(geometry);
+            OGRPolygon *polygon = new OGRPolygon();
+            OGRLinearRing *ring = new OGRLinearRing();
+            OGRPoint lastPoint, point;
+            for (int currentPoint = 0; currentPoint < oldRing->getNumPoints(); ++currentPoint) {
+                oldRing->getPoint(currentPoint, &point);
+                if (currentPoint > 0) {
+                    if (!point.Equals(&lastPoint)) ring->addPoint(&point);
+                } lastPoint = point;
+            } polygon->addRingDirectly(ring);
+            multipolygon->addGeometryDirectly(polygon);
+            break;
+        }
+            
+        case wkbPolygon: {
+            OGRPolygon *oldPolygon = static_cast<OGRPolygon *>(geometry);
+            OGRPolygon *polygon = new OGRPolygon();
+            OGRLinearRing *oldRing = oldPolygon->getExteriorRing();
+            OGRLinearRing *ring = new OGRLinearRing();
+            OGRPoint lastPoint, point;
+            for (int currentPoint = 0; currentPoint < oldRing->getNumPoints(); ++currentPoint) {
+                oldRing->getPoint(currentPoint, &point);
+                if (currentPoint > 0) {
+                    if (!point.Equals(&lastPoint)) ring->addPoint(&point);
+                } lastPoint = point;
+            } polygon->addRingDirectly(ring);
+            for (int currentRing = 0; currentRing < oldPolygon->getNumInteriorRings(); ++currentRing) {
+                oldRing = oldPolygon->getInteriorRing(currentRing);
+                ring = new OGRLinearRing();
+                for (int currentPoint = 0; currentPoint < oldRing->getNumPoints(); ++currentPoint) {
+                    oldRing->getPoint(currentPoint, &point);
+                    if (currentPoint > 0) {
+                        if (!point.Equals(&lastPoint)) ring->addPoint(&point);
+                    } lastPoint = point;
+                } polygon->addRingDirectly(ring);
+            } multipolygon->addGeometryDirectly(polygon);
+            break;
+        }
+            
+        case wkbMultiPolygon: {
+            OGRMultiPolygon *oldMultipolygon = static_cast<OGRMultiPolygon *>(geometry);
+            OGRPolygon *oldPolygon, *polygon;
+            OGRLinearRing *oldRing, *ring;
+            OGRPoint lastPoint, point;
+            for (int currentPolygon = 0; currentPolygon < oldMultipolygon->getNumGeometries(); ++currentPolygon) {
+                oldPolygon = static_cast<OGRPolygon *>(oldMultipolygon->getGeometryRef(currentPolygon));
+                polygon = new OGRPolygon();
+                oldRing = oldPolygon->getExteriorRing();
+                ring = new OGRLinearRing();
+                for (int currentPoint = 0; currentPoint < oldRing->getNumPoints(); ++currentPoint) {
+                    oldRing->getPoint(currentPoint, &point);
+                    if (currentPoint > 0) {
+                        if (!point.Equals(&lastPoint)) ring->addPoint(&point);
+                    } lastPoint = point;
+                } polygon->addRingDirectly(ring);
+                for (int currentRing = 0; currentRing < oldPolygon->getNumInteriorRings(); ++currentRing) {
+                    oldRing = oldPolygon->getInteriorRing(currentRing);
+                    ring = new OGRLinearRing();
+                    for (int currentPoint = 0; currentPoint < oldRing->getNumPoints(); ++currentPoint) {
+                        oldRing->getPoint(currentPoint, &point);
+                        if (currentPoint > 0) {
+                            if (!point.Equals(&lastPoint)) ring->addPoint(&point);
+                        } lastPoint = point;
+                    } polygon->addRingDirectly(ring);
+                } multipolygon->addGeometryDirectly(polygon);
+            } break;
+        }
+            
+        default:
+            std::cerr << "PolygonRepair::isr: Cannot understand input." << std::endl;
+            return new OGRMultiPolygon();
+            break;
+    } multipolygon->closeRings();
+    
+    // Put all line segments in a list (in order)
+    std::list<Segment> inputSegments;
+    for (int currentPolygon = 0; currentPolygon < multipolygon->getNumGeometries(); ++currentPolygon) {
+        OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(currentPolygon));
+        for (int currentPoint = 1; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
+            Segment thisSegment(Point(polygon->getExteriorRing()->getX(currentPoint-1), polygon->getExteriorRing()->getY(currentPoint-1)),
+                                Point(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)));
+            if (thisSegment.is_degenerate()) {
+                std::cout << "This should not happen!!!" << std::endl;
+                return new OGRMultiPolygon();
+            } inputSegments.push_back(thisSegment);
+        } for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+            for (int currentPoint = 1; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
+                Segment thisSegment(Point(polygon->getExteriorRing()->getX(currentPoint-1), polygon->getExteriorRing()->getY(currentPoint-1)),
+                                    Point(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)));
+                if (thisSegment.is_degenerate()) {
+                    std::cout << "This should not happen!!!" << std::endl;
+                    return new OGRMultiPolygon();
+                } std::cout << thisSegment << std::endl;
+                inputSegments.push_back(thisSegment);
+            }
+        }
+    }
+    
+    // Snap
+    std::list<std::list<Point> > outputPolylines;
+    CGAL::snap_rounding_2<SRT, std::list<Segment>::const_iterator, std::list<std::list<Point> > >(inputSegments.begin(), inputSegments.end(), outputPolylines, tolerance, true, false, 2);
+    
+    // Put it back into an OGRMultiPolygon
+    OGRMultiPolygon *snappedMultipolygon = new OGRMultiPolygon();
+    std::list<std::list<Point> >::iterator currentPolyline = outputPolylines.begin();
+    for (int currentPolygon = 0; currentPolygon < multipolygon->getNumGeometries(); ++currentPolygon) {
+        OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(currentPolygon));
+        OGRPolygon *snappedPolygon = new OGRPolygon();
+        OGRLinearRing *snappedOuterRing = new OGRLinearRing();
+        for (int currentPoint = 1; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
+            std::list<Point>::iterator point = currentPolyline->begin();
+            ++point;
+            while (point != currentPolyline->end()) {
+                snappedOuterRing->addPoint(CGAL::to_double(point->x()), CGAL::to_double(point->y()));
+                ++point;
+            } ++currentPolyline;
+        } snappedPolygon->addRingDirectly(snappedOuterRing);
+        for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+            OGRLinearRing *snappedInnerRing = new OGRLinearRing();
+            for (int currentPoint = 1; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
+                std::list<Point>::iterator point = currentPolyline->begin();
+                ++point;
+                while (point != currentPolyline->end()) {
+                    snappedOuterRing->addPoint(CGAL::to_double(point->x()), CGAL::to_double(point->y()));
+                    ++point;
+                } ++currentPolyline;
+            } snappedPolygon->addRingDirectly(snappedInnerRing);
+        } snappedMultipolygon->OGRGeometryCollection::addGeometryDirectly(snappedPolygon);
+    }
+    
+    return snappedMultipolygon;
+}
+
+double PolygonRepair::computeRobustness() {
+    double smallestdist = 1e99;
+    
+    //-- vertex-vertex distances
+    Vector dist;
+    for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); curV++) {
+        // std::cout << "---" << curV->point() << "---" << std::endl;
+        Triangulation::Vertex_circulator vc = triangulation.incident_vertices(curV);
+        Triangulation::Vertex_handle startv = vc;
+        vc++;
+        while (vc != startv) {
+            if (triangulation.is_infinite(vc) == false) {
+                // std::cout << vc->point() << std::endl;
+                dist = curV->point() - vc->point();
+                // std::cout << "distance: " << dist.squared_length()  << std::endl;
+                if (dist.squared_length() < smallestdist)
+                    smallestdist = CGAL::to_double(dist.squared_length());
+            }
+            vc++;
+        }
+        dist = curV->point() - startv->point();
+        if (dist.squared_length() < smallestdist)
+            smallestdist = CGAL::to_double(dist.squared_length());
+    }
+    
+    //-- vertex-edge distances
+    for (Triangulation::Finite_vertices_iterator curV = triangulation.finite_vertices_begin(); curV != triangulation.finite_vertices_end(); curV++) {
+        // std::cout << "---" << curV->point() << "---" << std::endl;
+        Triangulation::Face_circulator fc = triangulation.incident_faces(curV);
+        Triangulation::Face_handle startf = fc;
+        fc++;
+        while (fc != startf) {
+            if (triangulation.is_infinite(fc) == false) {
+                int i = fc->index(curV);
+                if (fc->is_constrained(i)) {
+                    double d = CGAL::to_double(squared_distance(triangulation.segment(fc, i), fc->vertex(i)->point()));
+                    if (d < smallestdist)
+                        smallestdist = d;
+                }
+            }
+            fc++;
+        }
+        if (triangulation.is_infinite(startf) == false) {
+            int i = startf->index(curV);
+            if (startf->is_constrained(i)) {
+                double d = CGAL::to_double(squared_distance(triangulation.segment(startf, i), startf->vertex(i)->point()));
+                if (d < smallestdist)
+                    smallestdist = d;
+            }
+        }
+    } return smallestdist;
 }
 
 void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry* geometry, bool removeOverlappingConstraints) {
@@ -114,10 +289,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                                                 ring->getY(currentPoint)));
                 vb = triangulation.insert(Point(ring->getX((currentPoint+1)%ring->getNumPoints()),
                                                 ring->getY((currentPoint+1)%ring->getNumPoints())));
-                //std::cerr << "Inserting contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                 if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                     if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                        //std::cerr << "\tRemoving duplicate constraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                         triangulation.insert_constraint(va, vb);
                         triangulation.remove_constraint(va, vb);
                     } else triangulation.insert_constraint(va, vb);
@@ -134,10 +307,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                                                 polygon->getExteriorRing()->getY(currentPoint)));
                 vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                                 polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
-                //std::cerr << "Inserting contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                 if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                     if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                        //std::cerr << "\tRemoving duplicate constraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                         triangulation.insert_constraint(va, vb);
                         triangulation.remove_constraint(va, vb);
                     } else triangulation.insert_constraint(va, vb);
@@ -151,10 +322,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                                                     polygon->getInteriorRing(currentRing)->getY(currentPoint)));
                     vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                                     polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
-                    //std::cerr << "Inserting contraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                     if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                         if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                            //std::cerr << "\tRemoving duplicate constraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                             triangulation.insert_constraint(va, vb);
                             triangulation.remove_constraint(va, vb);
                         } else triangulation.insert_constraint(va, vb);
@@ -175,10 +344,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                                                     polygon->getExteriorRing()->getY(currentPoint)));
                     vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                                     polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
-                    //std::cerr << "Inserting contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                     if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                         if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                            //std::cerr << "\tRemoving duplicate constraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                             triangulation.insert_constraint(va, vb);
                             triangulation.remove_constraint(va, vb);
                         } else triangulation.insert_constraint(va, vb);
@@ -192,10 +359,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                                                         polygon->getInteriorRing(currentRing)->getY(currentPoint)));
                         vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                                         polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
-                        //std::cerr << "Inserting contraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                         if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
                             if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                                //std::cerr << "\tRemoving duplicate constraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                                 triangulation.insert_constraint(va, vb);
                                 triangulation.remove_constraint(va, vb);
                             } else triangulation.insert_constraint(va, vb);
@@ -206,26 +371,23 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         }
         
         default:
-            std::cerr << "PolygonRepair::insertConstraints: Cannot understand input. Only polygons are supported." << std::endl;
+            std::cerr << "PolygonRepair::insertConstraints: Cannot understand input." << std::endl;
             return;
             break;
     }
     
     // Remove partially even-overlapping subconstraints
     if (!removeOverlappingConstraints) return;
-    //std::cerr << "Checking subconstraints..." << std::endl;
     for (Triangulation::Subconstraint_iterator currentEdge = triangulation.subconstraints_begin();
          currentEdge != triangulation.subconstraints_end();
          ++currentEdge) {
         if (triangulation.number_of_enclosing_constraints(currentEdge->first.first, currentEdge->first.second) % 2 == 0) {
-            //std::cerr << "\tRemoving even-overlapped subconstraint <" << currentEdge->first.first->point() << ", " << currentEdge->first.second->point() << ">..." << std::endl;
             triangulation.remove_constraint(currentEdge->first.first, currentEdge->first.second);
         }
     }
 }
 
 void PolygonRepair::tagOddEven(Triangulation &triangulation) {
-    std::cout << "PolygonRepair::tagOddEven" << std::endl;
 	
     // Clean tags
     for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
@@ -270,7 +432,6 @@ void PolygonRepair::tagOddEven(Triangulation &triangulation) {
 }
 
 void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries) {
-    //std::cout << "PolygonRepair::tagPointSet" << std::endl;
     
     // Clean tags
     for (Triangulation::Face_handle currentFace = triangulation.all_faces_begin(); currentFace != triangulation.all_faces_end(); ++currentFace)
@@ -284,7 +445,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
     bool sameOrder;
     
     // Add all repaired outer rings
-    std::cout << "Flooding outer rings..." << std::endl;
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator multipolygon = geometries.begin();
          multipolygon != geometries.end(); ++multipolygon) {
         for (int currentPolygon = 0; currentPolygon < multipolygon->second->getNumGeometries(); ++currentPolygon) {
@@ -298,7 +458,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                 vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                                 polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
                 if (va->point() == vb->point()) continue;
-                std::cerr << "Tagging contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                 currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
                 nextVertex = currentVertex;
                 ++nextVertex;
@@ -316,18 +475,8 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                             std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
                             return;
                         }
-                    } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0) {
-                        std::cout << "Marked in internal border: ";
-                        printTriangle(faceOfSubedge);
-                        std::cout << std::endl;
-                        borderTriangles.push(faceOfSubedge);
-                        faceOfSubedge->info().isOnBorder(true);
+                    } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0)
                         taggingStack.push(faceOfSubedge);
-                    } std::cout << "Marked in external border: ";
-                    printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
-                    std::cout << std::endl;
-                    borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
-                    faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                     currentVertex = nextVertex;
                     ++nextVertex;
                 }
@@ -341,7 +490,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                     vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                                     polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
                     if (va->point() == vb->point()) continue;
-                    std::cerr << "Tagging contraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                     currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
                     nextVertex = currentVertex;
                     ++nextVertex;
@@ -359,18 +507,8 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                                 std::cerr << "PolygonRepair::tagPointSet: Cannot find edge!" << std::endl;
                                 return;
                             }
-                        } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0) {
-                            std::cout << "Marked in internal border: ";
-                            printTriangle(faceOfSubedge);
-                            std::cout << std::endl;
-                            borderTriangles.push(faceOfSubedge);
-                            faceOfSubedge->info().isOnBorder(true);
+                        } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0)
                             taggingStack.push(faceOfSubedge);
-                        } std::cout << "Marked in external border: ";
-                        printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
-                        std::cout << std::endl;
-                        borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
-                        faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                         currentVertex = nextVertex;
                         ++nextVertex;
                     }
@@ -383,23 +521,14 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                 Triangulation::Face_handle currentFace = taggingStack.top();
                 taggingStack.pop();
                 if (currentFace->info().beenTagged()) continue;
-                std::cout << "Tagging ";
-                printTriangle(currentFace);
-                std::cout << std::endl;
                 currentFace->info().isInInterior(true);
                 untaggingStack.push(currentFace);
                 for (int currentEdge = 0; currentEdge < 3; ++currentEdge) {
-                    if (!currentFace->neighbor(currentEdge)->info().isOnBorder() &&
-                        !currentFace->neighbor(currentEdge)->info().beenTagged()) {
+                    if (!currentFace->neighbor(currentEdge)->info().beenTagged() &&
+                        !currentFace->is_constrained(currentEdge)) {
                         taggingStack.push(currentFace->neighbor(currentEdge));
                     }
                 }
-            }
-            
-            // Remove border tags
-            while (!borderTriangles.empty()) {
-                borderTriangles.top()->info().isOnBorder(false);
-                borderTriangles.pop();
             }
             
             // Remove tagged tags
@@ -410,8 +539,7 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
         }
     }
     
-    // TODO: Subtract all repaired inner rings
-    std::cout << "Carving inner rings..." << std::endl;
+    // Subtract all repaired inner rings
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator multipolygon = geometries.begin();
          multipolygon != geometries.end(); ++multipolygon) {
         for (int currentPolygon = 0; currentPolygon < multipolygon->second->getNumGeometries(); ++currentPolygon) {
@@ -425,7 +553,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                 vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                                 polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
                 if (va->point() == vb->point()) continue;
-                std::cerr << "Carving contraint <" << va->point() << ", " << vb->point() << "> in outer ring..." << std::endl;
                 currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
                 nextVertex = currentVertex;
                 ++nextVertex;
@@ -444,16 +571,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                             return;
                         }
                     } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0) {
-                        std::cout << "Marked in internal border: ";
-                        printTriangle(faceOfSubedge);
-                        std::cout << std::endl;
                         borderTriangles.push(faceOfSubedge);
                         faceOfSubedge->info().isOnBorder(true);
                         taggingStack.push(faceOfSubedge);
-                    } std::cout << "Marked in external border: ";
-                    printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
-                    std::cout << std::endl;
-                    borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                    } borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
                     faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                     currentVertex = nextVertex;
                     ++nextVertex;
@@ -468,7 +589,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                     vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                                     polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
                     if (va->point() == vb->point()) continue;
-                    std::cerr << "Carving contraint <" << va->point() << ", " << vb->point() << "> in inner ring..." << std::endl;
                     currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
                     nextVertex = currentVertex;
                     ++nextVertex;
@@ -487,16 +607,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
                                 return;
                             }
                         } if (triangulation.number_of_enclosing_constraints(*currentVertex, *nextVertex) % 2 != 0) {
-                            std::cout << "Marked in internal border: ";
-                            printTriangle(faceOfSubedge);
-                            std::cout << std::endl;
                             borderTriangles.push(faceOfSubedge);
                             faceOfSubedge->info().isOnBorder(true);
                             taggingStack.push(faceOfSubedge);
-                        } std::cout << "Marked in external border: ";
-                        printTriangle(faceOfSubedge->neighbor(indexOfSubedge));
-                        std::cout << std::endl;
-                        borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
+                        } borderTriangles.push(faceOfSubedge->neighbor(indexOfSubedge));
                         faceOfSubedge->neighbor(indexOfSubedge)->info().isOnBorder(true);
                         currentVertex = nextVertex;
                         ++nextVertex;
@@ -536,8 +650,6 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
 }
 
 OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
-    std::cout << "PolygonRepair::reconstruct" << std::endl;
-    
     // std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
     if (triangulation.number_of_faces() < 1) {
         return NULL;
@@ -548,9 +660,6 @@ OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
     for (Triangulation::Finite_faces_iterator seedingFace = triangulation.finite_faces_begin(); seedingFace != triangulation.finite_faces_end(); ++seedingFace) {
         
         if (!seedingFace->info().isInInterior() || seedingFace->info().beenReconstructed()) continue;
-        std::cout << "Seeding face: ";
-        printTriangle(seedingFace);
-        std::cout << std::endl;
         seedingFace->info().beenReconstructed(true);
         if (!seedingFace->info().beenReconstructed()) {
             std::cout << "ERROR! Should be marked as reconstructed!!!" << std::endl;
@@ -561,32 +670,21 @@ OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
         if (seedingFace->neighbor(2)->info().isInInterior() && !seedingFace->neighbor(2)->info().beenReconstructed()) {
             seedingFace->neighbor(2)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l2 = getBoundary(seedingFace->neighbor(2), seedingFace->neighbor(2)->index(seedingFace));
-            std::cout << "Putting ";
-            printChain(*l2);
             vertices->splice(vertices->end(), *l2);
             delete l2;
-        } std::cout << "Inserting " << seedingFace->vertex(0)->point() << std::endl;
-        vertices->push_back(seedingFace->vertex(0));
+        } vertices->push_back(seedingFace->vertex(0));
         if (seedingFace->neighbor(1)->info().isInInterior() && !seedingFace->neighbor(1)->info().beenReconstructed()) {
             seedingFace->neighbor(1)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l1 = getBoundary(seedingFace->neighbor(1), seedingFace->neighbor(1)->index(seedingFace));
-            std::cout << "Putting ";
-            printChain(*l1);
             vertices->splice(vertices->end(), *l1);
             delete l1;
-        } std::cout << "Inserting " << seedingFace->vertex(2)->point() << std::endl;
-        vertices->push_back(seedingFace->vertex(2));
+        } vertices->push_back(seedingFace->vertex(2));
         if (seedingFace->neighbor(0)->info().isInInterior() && !seedingFace->neighbor(0)->info().beenReconstructed()) {
             seedingFace->neighbor(0)->info().beenReconstructed(true);
             std::list<Triangulation::Vertex_handle> *l0 = getBoundary(seedingFace->neighbor(0), seedingFace->neighbor(0)->index(seedingFace));
-            std::cout << "Putting ";
-            printChain(*l0);
             vertices->splice(vertices->end(), *l0);
             delete l0;
-        } std::cout << "Inserting " << seedingFace->vertex(1)->point() << std::endl;
-        vertices->push_back(seedingFace->vertex(1));
-        std::cout << "Chain: ";
-        printChain(*vertices);
+        } vertices->push_back(seedingFace->vertex(1));
         
         // Find cutting vertices
         std::set<Triangulation::Vertex_handle> visitedVertices;
@@ -684,12 +782,9 @@ OGRMultiPolygon *PolygonRepair::reconstruct(Triangulation &triangulation) {
 }
 
 std::list<Triangulation::Vertex_handle> *PolygonRepair::getBoundary(Triangulation::Face_handle face, int edge) {
-    std::cout << "PolygonRepair::getBoundary" << std::endl;
-    
     std::list<Triangulation::Vertex_handle> *vertices = new std::list<Triangulation::Vertex_handle>();
     
     // Check clockwise edge
-    //std::cout << "CW" << std::endl;
     if (face->neighbor(face->cw(edge))->info().isInInterior() && !face->neighbor(face->cw(edge))->info().beenReconstructed()) {
 		face->neighbor(face->cw(edge))->info().beenReconstructed(true);
 		std::list<Triangulation::Vertex_handle> *v1 = getBoundary(face->neighbor(face->cw(edge)), face->neighbor(face->cw(edge))->index(face));
@@ -698,11 +793,9 @@ std::list<Triangulation::Vertex_handle> *PolygonRepair::getBoundary(Triangulatio
 	}
 	
 	// Add central vertex
-    //std::cout << "CV: " << face->vertex(edge)->point() << std::endl;
-	vertices->push_back(face->vertex(edge));
+    vertices->push_back(face->vertex(edge));
 	
 	// Check counterclockwise edge
-    //std::cout << "CCW" << std::endl;
     if (face->neighbor(face->ccw(edge))->info().isInInterior() && !face->neighbor(face->ccw(edge))->info().beenReconstructed()) {
 		face->neighbor(face->ccw(edge))->info().beenReconstructed(true);
 		std::list<Triangulation::Vertex_handle> *v2 = getBoundary(face->neighbor(face->ccw(edge)), face->neighbor(face->ccw(edge))->index(face));
@@ -710,7 +803,6 @@ std::list<Triangulation::Vertex_handle> *PolygonRepair::getBoundary(Triangulatio
 		delete v2;
 	}
 	
-    //std::cout << "Done." << std::endl;
     return vertices;
 }
 

@@ -73,6 +73,7 @@ typedef CGAL::Snap_rounding_traits_2<K> SRT;
 
 typedef Triangulation::Point Point;
 typedef K::Segment_2 Segment;
+typedef K::Vector_2 Vector;
 
 // Non CGAL types
 typedef std::vector<std::pair<std::vector<Triangulation::Vertex_handle>, std::vector<std::vector<Triangulation::Vertex_handle> > > > TaggingVector;

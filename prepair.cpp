@@ -23,10 +23,12 @@
 
 //-- minimum size of a polygon in the output (smaller ones are not returned)
 //-- can be changed with --min flag
-double MIN_AREA = 0;
-double ISR_TOLERANCE = 0;
-bool wktout = false;
-bool shpout = false;
+double minArea = 0;
+double isrTolerance = 0;
+bool wktOut = false;
+bool shpOut = false;
+bool computeRobustness = false;
+bool pointSet = false;
 
 void usage();
 bool savetoshp(OGRMultiPolygon* multiPolygon);
@@ -41,16 +43,24 @@ int main (int argc, const char * argv[]) {
     OGRGeometry *geometry;
     
     for (int argNum = 1; argNum < argc; ++argNum) {
-        if (strcmp(argv[argNum], "--minarea") == 0) {
-            MIN_AREA = atof(argv[argNum+1]);
+        //-- whether to compute the robustness
+        if (strcmp(argv[argNum], "--robustness") == 0) {
+            computeRobustness = true;
+        }
+        
+        //-- mininum area to keep in output
+        else if (strcmp(argv[argNum], "--minarea") == 0) {
+            minArea = atof(argv[argNum+1]);
             ++argNum;
         }
+        
         //-- ISR snapping tolerance
         else if (strcmp(argv[argNum], "--isr") == 0) {
-            ISR_TOLERANCE = atof(argv[argNum+1]);
+            isrTolerance = atof(argv[argNum+1]);
             ++argNum;
             // TODO : scale dataset if tolerance < 1.0
         }
+        
         //-- reading from WKT passed directly
         else if (strcmp(argv[argNum], "--wkt") == 0) {
             unsigned int bufferSize = 100000000;
@@ -61,8 +71,9 @@ int main (int argc, const char * argv[]) {
             if (geometry == NULL) {
                 std::cout << "Error: WKT is not valid" << std::endl;
                 return 1;
-            } wktout = true;
+            } wktOut = true;
         }
+        
         //-- reading from WKT stored in first line of a text file
         else if (strcmp(argv[argNum], "-f") == 0) {
             unsigned int bufferSize = 100000000;
@@ -79,8 +90,9 @@ int main (int argc, const char * argv[]) {
             if (geometry == NULL) {
                 std::cout << "Error: WKT is not valid" << std::endl;
                 return 1;
-            } wktout = true;
+            } wktOut = true;
         }
+        
         //-- reading from a shapefile
         else if (strcmp(argv[argNum], "--shp") == 0) {
             OGRRegisterAll();
@@ -100,7 +112,7 @@ int main (int argc, const char * argv[]) {
             feature = dataLayer->GetNextFeature();
             if (feature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
                 geometry = static_cast<OGRPolygon *>(feature->GetGeometryRef());feature->GetGeometryRef();
-                shpout = true;
+                shpOut = true;
             }
             else {
                 std::cout << "First feature ain't a POLYGON." << std::endl;
@@ -115,33 +127,36 @@ int main (int argc, const char * argv[]) {
     }
     
     PolygonRepair prepair;
-    OGRMultiPolygon *outPolygons = prepair.repairPointSet(geometry);
-    
-    //-- snap rounding of the input
-    /*if (ISR_TOLERANCE != 0) {
-        Polyline_list_2 *snappedgeom = isr(geometry);
-        std::cout << "done." << std::endl;
-        outPolygons = repair(snappedgeom);
-    }
-    else {
-        outPolygons = repair(geometry);
-    }*/
-    
-    
-    char *outputWKT;
-    if (MIN_AREA > 0) {
-        prepair.removeSmallPolygons(outPolygons, MIN_AREA);
+    OGRGeometry *snappedGeometry;
+    if (isrTolerance != 0) {
+        snappedGeometry = prepair.isr(geometry, isrTolerance);
+    } else {
+        snappedGeometry = geometry;
     }
     
-    if (wktout) {
+    OGRMultiPolygon *outPolygons = prepair.repairPointSet(snappedGeometry);
+    
+    if (minArea > 0) {
+        prepair.removeSmallPolygons(outPolygons, minArea);
+    }
+    
+    //-- output well known text
+    if (wktOut) {
+        char *outputWKT;
         outPolygons->exportToWkt(&outputWKT);
-        std::cout << std::endl << "Repaired polygon:" << std::endl << outputWKT << std::endl;
+        std::cout << outputWKT << std::endl;
     }
     
     //-- save to a shapefile
-    else if (shpout) {
+    else if (shpOut) {
         savetoshp(outPolygons);
-    } return 0;
+    }
+    
+    //-- compute robustness
+    if (computeRobustness == true)
+        std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
+    
+    return 0;
 }
 
 void usage() {
@@ -192,84 +207,3 @@ bool savetoshp(OGRMultiPolygon* multiPolygon) {
     OGRDataSource::DestroyDataSource(dataSource);
     return true;
 }
-
-
-/*Polyline_list_2* isr(OGRGeometry* geometry) {
- std::cout << "ISR snapping with tolerance: " << ISR_TOLERANCE << std::endl;
- Segment_list_2 seg_list;
- OGRPolygon *polygon = (OGRPolygon *)geometry;
- polygon->closeRings();
- for (int currentPoint = 0; currentPoint < (polygon->getExteriorRing()->getNumPoints() - 1); ++currentPoint) {
- Segment_2 s = Segment_2( ISRPoint(polygon->getExteriorRing()->getX(currentPoint), polygon->getExteriorRing()->getY(currentPoint)),
- ISRPoint(polygon->getExteriorRing()->getX(currentPoint+1), polygon->getExteriorRing()->getY(currentPoint+1)));
- if (s.is_degenerate() == false)
- seg_list.push_back(s);
- // else
- // std::cout << "degenerate segment" << std::endl;
- }
- // ISRPoint(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
- //       polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()))
- // TODO: @Ken: I think you're creating twice the same edge here... no?
- 
- 
- for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
- for (int currentPoint = 0; currentPoint < (polygon->getInteriorRing(currentRing)->getNumPoints() - 1); ++currentPoint) {
- Segment_2 s = Segment_2(ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint),   polygon->getInteriorRing(currentRing)->getY(currentPoint)),
- ISRPoint(polygon->getInteriorRing(currentRing)->getX(currentPoint+1), polygon->getInteriorRing(currentRing)->getY(currentPoint+1)));
- if (s.is_degenerate() == false)
- seg_list.push_back(s);
- // else
- // std::cout << "Degenerate segment skipped." << std::endl;
- }
- }
- 
- // std::cout << "input segments: " << seg_list.size() << std::endl;
- // Segment_list_2::const_iterator its;
- // for (its = seg_list.begin(); its != seg_list.end(); ++its) {
- //   std::cout << "Segment " << (*its) << std::endl;
- //   std::cout << "   " << sqrt(CGAL::to_double(its->squared_length())) << std::endl;
- // }
- 
- Polyline_list_2 *output_list = new Polyline_list_2();
- // Polyline_list_2 output_list;
- CGAL::snap_rounding_2<Traits,Segment_list_2::const_iterator, Polyline_list_2>
- (seg_list.begin(), seg_list.end(), *output_list, ISR_TOLERANCE, true, false, 2);
- 
- int counter = 0;
- Polyline_list_2::const_iterator iter1;
- for (iter1 = output_list->begin(); iter1 != output_list->end(); ++iter1) {
- std::cout << "Polyline number " << ++counter << ":\n";
- Polyline_2::const_iterator iter2;
- // std::cout << iter1->size() << std::endl;
- for (iter2 = iter1->begin(); iter2 != iter1->end(); ++iter2)
- std::cout << CGAL::to_double(iter2->x()) << " " << CGAL::to_double(iter2->y()) << std::endl;
- }
- 
- return output_list;
- // return NULL;
- }*/
-
-
-/*std::list<OGRPolygon*>* repair(Polyline_list_2* seg_list) {
- // Triangulation
- Triangulation triangulation;
- 
- // int counter = 0;
- Polyline_list_2::const_iterator iter1;
- for (iter1 = seg_list->begin(); iter1 != seg_list->end(); iter1++) {
- // std::cout << "Polyline number " << ++counter << ":\n";
- Polyline_2::const_iterator iter2;
- ISRPoint last = iter1->back();
- for (iter2 = iter1->begin(); iter2 != iter1->end(); ) {
- if (*iter2 == last)
- break;
- Point p1 = Point(CGAL::to_double(iter2->x()), CGAL::to_double(iter2->y()));
- ++iter2;
- Point p2 = Point(CGAL::to_double(iter2->x()), CGAL::to_double(iter2->y()));
- triangulation.insert_constraint(p1, p2);
- }
- }
- 
- std::list<OGRPolygon*>* outPolygons = repair_tag_triangulation(triangulation);
- return outPolygons;
- }*/
