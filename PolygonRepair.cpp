@@ -311,8 +311,15 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                     if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
                         triangulation.insert_constraint(va, vb);
                         triangulation.remove_constraint(va, vb);
-                    } else triangulation.insert_constraint(va, vb);
-                } else triangulation.insert_constraint(va, vb);
+                        std::cout << "Removing constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                    } else {
+                        triangulation.insert_constraint(va, vb);
+                        std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                    }
+                } else {
+                    triangulation.insert_constraint(va, vb);
+                    std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                }
             }
             
             // Inner
@@ -326,8 +333,15 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                         if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
                             triangulation.insert_constraint(va, vb);
                             triangulation.remove_constraint(va, vb);
-                        } else triangulation.insert_constraint(va, vb);
-                    } else triangulation.insert_constraint(va, vb);
+                            std::cout << "Removing constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                        } else {
+                            triangulation.insert_constraint(va, vb);
+                            std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                        }
+                    } else {
+                        triangulation.insert_constraint(va, vb);
+                        std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
+                    }
                 }
             } break;
             
@@ -376,13 +390,20 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
             break;
     }
     
+    printEdges(triangulation);
+    
     // Remove partially even-overlapping subconstraints
     if (!removeOverlappingConstraints) return;
     for (Triangulation::Subconstraint_iterator currentEdge = triangulation.subconstraints_begin();
          currentEdge != triangulation.subconstraints_end();
          ++currentEdge) {
         if (triangulation.number_of_enclosing_constraints(currentEdge->first.first, currentEdge->first.second) % 2 == 0) {
-            triangulation.remove_constraint(currentEdge->first.first, currentEdge->first.second);
+            if (triangulation.is_edge(currentEdge->first.first, currentEdge->first.second, faceOfEdge, indexOfEdge)) {
+                if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
+                    std::cout << "Removing constraint <" << currentEdge->first.first->point() << ", " << currentEdge->first.second->point() << ">" << std::endl;
+                    triangulation.remove_constrained_edge(faceOfEdge, indexOfEdge);
+                }
+            }
         }
     }
 }

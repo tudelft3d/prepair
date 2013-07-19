@@ -134,7 +134,12 @@ int main (int argc, const char * argv[]) {
         snappedGeometry = geometry;
     }
     
-    OGRMultiPolygon *outPolygons = prepair.repairPointSet(snappedGeometry);
+    OGRMultiPolygon *outPolygons;
+    if (pointSet) {
+        outPolygons = prepair.repairPointSet(snappedGeometry);
+    } else {
+        outPolygons = prepair.repairOddEven(snappedGeometry);
+    }
     
     if (minArea > 0) {
         prepair.removeSmallPolygons(outPolygons, minArea);
