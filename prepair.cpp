@@ -48,6 +48,11 @@ int main (int argc, const char * argv[]) {
             computeRobustness = true;
         }
         
+        //-- whether to use the point set topology paradigm
+        if (strcmp(argv[argNum], "--setdiff") == 0) {
+            pointSet = true;
+        }
+        
         //-- mininum area to keep in output
         else if (strcmp(argv[argNum], "--minarea") == 0) {
             minArea = atof(argv[argNum+1]);
@@ -134,7 +139,12 @@ int main (int argc, const char * argv[]) {
         snappedGeometry = geometry;
     }
     
-    OGRMultiPolygon *outPolygons = prepair.repairPointSet(snappedGeometry);
+    OGRMultiPolygon *outPolygons;
+    if (pointSet) {
+        outPolygons = prepair.repairPointSet(snappedGeometry);
+    } else {
+        outPolygons = prepair.repairOddEven(snappedGeometry);
+    }
     
     if (minArea > 0) {
         prepair.removeSmallPolygons(outPolygons, minArea);
