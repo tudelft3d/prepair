@@ -9,10 +9,16 @@ LDFLAGS=-g -O3  -D_REENTRANT -frounding-math -Wl,-Bsymbolic-functions -L$(LPATH)
 
 all: prepair
 
+PolygonRepair.o: PolygonRepair.cpp
+	$(CC) $(CFLAGS) -c $^
+
+TriangleInfo.o: TriangleInfo.cpp
+	$(CC) $(CFLAGS) -c $^
+
 prepair.o: prepair.cpp
 	$(CC) $(CFLAGS) -c $^
 
-prepair: prepair.o
+prepair: PolygonRepair.o TriangleInfo.o prepair.o
 	$(CC) $(LDFLAGS) $^ -o prepair
 
 clean:
