@@ -176,6 +176,12 @@ void usage() {
     std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
     std::cout << "OR" << std::endl;
     std::cout << "Usage:   prepair --shp infile.shp (first polygon of infile.shp is processed)" << std::endl;
+    std::cout << "================================================================================" << std::endl;
+    std::cout << "Additional options:" << std::endl;
+    std::cout << "--robustness   Compute the robustness of the output" << std::endl;
+    std::cout << "--setdiff      Uses the point set topology paradigm (IN \\ OUT)" << std::endl;
+    std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
+    std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
     
 }
 
