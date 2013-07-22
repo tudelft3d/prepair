@@ -38,6 +38,7 @@
 #include <list>
 #include <fstream>
 #include <math.h>
+#include <time.h>
 
 // OGR
 #include <gdal/ogrsf_frmts.h>

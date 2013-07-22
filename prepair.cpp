@@ -29,11 +29,14 @@ bool wktOut = false;
 bool shpOut = false;
 bool computeRobustness = false;
 bool pointSet = false;
+bool timeResults = false;
 
 void usage();
 bool savetoshp(OGRMultiPolygon* multiPolygon);
 
 int main (int argc, const char * argv[]) {
+    
+    time_t startTime = time(NULL);
     
     if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         usage();
@@ -64,6 +67,11 @@ int main (int argc, const char * argv[]) {
             isrTolerance = atof(argv[argNum+1]);
             ++argNum;
             // TODO : scale dataset if tolerance < 1.0
+        }
+        
+        //-- time the results
+        else if (strcmp(argv[argNum], "--time") == 0) {
+            timeResults = true;
         }
         
         //-- reading from WKT passed directly
@@ -125,11 +133,14 @@ int main (int argc, const char * argv[]) {
             }
             
         }
+        
         else {
             usage();
             return(0);
         }
     }
+    
+    if (!timeResults) startTime = 0;
     
     PolygonRepair prepair;
     OGRGeometry *snappedGeometry;
@@ -141,9 +152,9 @@ int main (int argc, const char * argv[]) {
     
     OGRMultiPolygon *outPolygons;
     if (pointSet) {
-        outPolygons = prepair.repairPointSet(snappedGeometry);
+        outPolygons = prepair.repairPointSet(snappedGeometry, startTime);
     } else {
-        outPolygons = prepair.repairOddEven(snappedGeometry);
+        outPolygons = prepair.repairOddEven(snappedGeometry, startTime);
     }
     
     if (minArea > 0) {
@@ -159,12 +170,18 @@ int main (int argc, const char * argv[]) {
     
     //-- save to a shapefile
     else if (shpOut) {
-        savetoshp(outPolygons);
+        prepair.saveToShp(outPolygons, "out.shp");
     }
     
     //-- compute robustness
     if (computeRobustness == true)
         std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
+    
+    //-- time results
+    if (timeResults) {
+        time_t totalTime = time(NULL)-startTime;
+        std::cout << "Done! Process finished in " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
+    }
     
     return 0;
 }
@@ -182,44 +199,8 @@ void usage() {
     std::cout << "--setdiff      Uses the point set topology paradigm (IN \\ OUT)" << std::endl;
     std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
     std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
+    std::cout << "--time         Benchmark the different stages of the process" << std::endl;
     
 }
 
 
-bool savetoshp(OGRMultiPolygon* multiPolygon) {
-    const char *driverName = "ESRI Shapefile";
-    OGRRegisterAll();
-	OGRSFDriver *driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(driverName);
-	if (driver == NULL) {
-		std::cout << "\tError: OGR Shapefile driver not found." << std::endl;
-		return false;
-	}
-	OGRDataSource *dataSource = driver->Open("out.shp", false);
-	if (dataSource != NULL) {
-		std::cout << "\tOverwriting file..." << std::endl;
-		if (driver->DeleteDataSource(dataSource->GetName())!= OGRERR_NONE) {
-			std::cout << "\tError: Couldn't erase file with same name." << std::endl;
-			return false;
-		} OGRDataSource::DestroyDataSource(dataSource);
-	}
-	std::cout << "\tWriting file... " << std::endl;
-	dataSource = driver->CreateDataSource("out.shp", NULL);
-	if (dataSource == NULL) {
-		std::cout << "\tError: Could not create file." << std::endl;
-		return false;
-	}
-	OGRLayer *layer = dataSource->CreateLayer("polygons", NULL, wkbPolygon, NULL);
-	if (layer == NULL) {
-		std::cout << "\tError: Could not create layer." << std::endl;
-		return false;
-	}
-    OGRFeature *feature = OGRFeature::CreateFeature(layer->GetLayerDefn());
-    // feature->SetField("Name", szName);
-    feature->SetGeometry(multiPolygon);
-    if (layer->CreateFeature(feature) != OGRERR_NONE) {
-        std::cout << "\tError: Could not create feature." << std::endl;
-    }
-    OGRFeature::DestroyFeature(feature);
-    OGRDataSource::DestroyDataSource(dataSource);
-    return true;
-}

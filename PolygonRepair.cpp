@@ -21,16 +21,30 @@
 
 #include "PolygonRepair.h"
 
-OGRMultiPolygon *PolygonRepair::repairOddEven(OGRGeometry *geometry) {
+OGRMultiPolygon *PolygonRepair::repairOddEven(OGRGeometry *geometry, bool timeResults) {
+    triangulation.clear();
+    time_t thisTime, totalTime;
+    thisTime = time(NULL);
     insertConstraints(triangulation, geometry);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Triangulation: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
+    thisTime = time(NULL);
     tagOddEven(triangulation);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Tagging: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
+    thisTime = time(NULL);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Reconstruction: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
     return outPolygons;
 }
 
-OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
+OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry, bool timeResults) {
+    triangulation.clear();
     std::list<std::pair<bool, OGRMultiPolygon *> > repairedRings;   // bool indicates if outer/inner are flipped
     
+    time_t thisTime, totalTime;
+    thisTime = time(NULL);
     switch (geometry->getGeometryType()) {
             
         case wkbLineString: {
@@ -63,13 +77,23 @@ OGRMultiPolygon *PolygonRepair::repairPointSet(OGRGeometry *geometry) {
             std::cerr << "PolygonRepair::repairPointSet: Cannot understand input." << std::endl;
             return new OGRMultiPolygon();
             break;
-    }
+    } totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Repairing individual rings: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
     
+    thisTime = time(NULL);
     for (std::list<std::pair<bool, OGRMultiPolygon *> >::iterator currentMultipolygon = repairedRings.begin();
          currentMultipolygon != repairedRings.end(); ++currentMultipolygon)
         insertConstraints(triangulation, currentMultipolygon->second, false);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Triangulation: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
+    thisTime = time(NULL);
     tagPointSet(triangulation, repairedRings);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Tagging: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
+    thisTime = time(NULL);
     OGRMultiPolygon *outPolygons = reconstruct(triangulation);
+    totalTime = time(NULL)-thisTime;
+    if (timeResults) std::cout << "Reconstruction: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
     return outPolygons;
 }
 
@@ -273,6 +297,44 @@ double PolygonRepair::computeRobustness() {
             }
         }
     } return smallestdist;
+}
+
+bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {
+    const char *driverName = "ESRI Shapefile";
+    OGRRegisterAll();
+	OGRSFDriver *driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(driverName);
+	if (driver == NULL) {
+		std::cout << "\tError: OGR Shapefile driver not found." << std::endl;
+		return false;
+	}
+	OGRDataSource *dataSource = driver->Open(fileName, false);
+	if (dataSource != NULL) {
+		std::cout << "\tOverwriting file..." << std::endl;
+		if (driver->DeleteDataSource(dataSource->GetName())!= OGRERR_NONE) {
+			std::cout << "\tError: Couldn't erase file with same name." << std::endl;
+			return false;
+		} OGRDataSource::DestroyDataSource(dataSource);
+	}
+	std::cout << "\tWriting file... " << std::endl;
+	dataSource = driver->CreateDataSource(fileName, NULL);
+	if (dataSource == NULL) {
+		std::cout << "\tError: Could not create file." << std::endl;
+		return false;
+	}
+	OGRLayer *layer = dataSource->CreateLayer("polygons", NULL, wkbPolygon, NULL);
+	if (layer == NULL) {
+		std::cout << "\tError: Could not create layer." << std::endl;
+		return false;
+	}
+    OGRFeature *feature = OGRFeature::CreateFeature(layer->GetLayerDefn());
+    // feature->SetField("Name", szName);
+    feature->SetGeometry(geometry);
+    if (layer->CreateFeature(feature) != OGRERR_NONE) {
+        std::cout << "\tError: Could not create feature." << std::endl;
+    }
+    OGRFeature::DestroyFeature(feature);
+    OGRDataSource::DestroyDataSource(dataSource);
+    return true;
 }
 
 void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry* geometry, bool removeOverlappingConstraints) {
