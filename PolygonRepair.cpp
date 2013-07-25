@@ -319,7 +319,7 @@ bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {
 			return false;
 		} OGRDataSource::DestroyDataSource(dataSource);
 	}
-	std::cout << "\tWriting file... " << std::endl;
+	std::cout << "\tCreating " << fileName << std::endl;
 	dataSource = driver->CreateDataSource(fileName, NULL);
 	if (dataSource == NULL) {
 		std::cout << "\tError: Could not create file." << std::endl;
