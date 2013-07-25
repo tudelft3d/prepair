@@ -246,8 +246,10 @@ OGRMultiPolygon *PolygonRepair::isr(OGRGeometry *geometry, double tolerance) {
     return snappedMultipolygon;
 }
 
-double PolygonRepair::computeRobustness() {
+double PolygonRepair::computeRobustness(OGRGeometry *geometry) {
     double smallestdist = 1e99;
+    
+    if (geometry != NULL) insertConstraints(triangulation, geometry);  
     
     //-- vertex-vertex distances
     Vector dist;
@@ -296,7 +298,9 @@ double PolygonRepair::computeRobustness() {
                     smallestdist = d;
             }
         }
-    } return smallestdist;
+    } 
+    if (geometry != NULL) triangulation.clear();
+    return smallestdist;
 }
 
 bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {

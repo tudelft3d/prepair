@@ -147,9 +147,9 @@ int main (int argc, const char * argv[]) {
 
     PolygonRepair prepair;
 
-    // //-- compute robustness
-    // if (computeRobustness == true)
-    //     std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
+    //-- compute robustness
+    if (computeRobustness == true)
+        std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
 
     OGRGeometry *snappedGeometry;
     if (isrTolerance != 0) {
