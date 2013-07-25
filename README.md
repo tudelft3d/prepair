@@ -34,8 +34,8 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a OGR dataset (shapefil
     MULTIPOLYGON (((0 10,0 0,5 5,0 10)),((5 5,10 0,10 10,5 5)))
 
     $ ./prepair --shpOut --ogr data/CLC2006_180927.geojson 
-    	Overwriting file...
-    	Creating out.shp
+    Overwriting file...
+    Creating out.shp
     
 [Snap rounding](http://www.cgal.org/Manual/latest/doc_html/cgal_manual/Snap_rounding_2/Chapter_main.html) of the input segments can be performed:
 
