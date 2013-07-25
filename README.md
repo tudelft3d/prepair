@@ -25,7 +25,7 @@ And then use the makefile provided for Mac and Linux. For Windows, you're on you
 
 ## It's a command-line program only
 
-A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a OGR dataset (shapefile, geojson or GML for instance) is read as input, and a WKT or a shapefile (a MultiPolygon) is given as output:
+A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or an OGR dataset (shapefile, geojson or GML for instance) is read as input, and a WKT or a shapefile (a MultiPolygon) is given as output:
 
     $ ./prepair --wkt 'POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))'  
     MULTIPOLYGON (((0 10,0 0,5 5,0 10)),((5 5,10 0,10 10,5 5)))  
@@ -34,7 +34,6 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a OGR dataset (shapefil
     MULTIPOLYGON (((0 10,0 0,5 5,0 10)),((5 5,10 0,10 10,5 5)))
 
     $ ./prepair --shpOut --ogr data/CLC2006_180927.geojson 
-    Overwriting file...
     Creating out.shp
     
 [Snap rounding](http://www.cgal.org/Manual/latest/doc_html/cgal_manual/Snap_rounding_2/Chapter_main.html) of the input segments can be performed:
