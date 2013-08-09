@@ -13,3 +13,7 @@ prepair
 
 # xcode project
 *.xcodeproj
+
+CMakeFiles
+cmake_install.cmake
+CMakeCache.txt

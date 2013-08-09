@@ -16,12 +16,18 @@ Details of how we automatically repair broken polygons, and what results you can
 
 ## How to compile?
 
-You first need to install the following two (free) libraries:
+prepair is provided as source code, which is very easy to compile it on Linux and Mac. We plan on offering binaries (including for Windows) in the future.
+
+To compile it, you first need to install the following three (free) libraries:
 
 1. [CGAL](http://www.cgal.org)
 2. [OGR](http://www.gdal.org/ogr/)
+3. [CMake](http://www.cmake.org) 
 
-And then use the makefile provided for Mac and Linux. For Windows, you're on your own right now, but we plan to provide binaries in the near future.
+Afterwards run:
+
+    $ cmake .
+    $ make
 
 ## It's a command-line program only
 
