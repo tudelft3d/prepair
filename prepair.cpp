@@ -21,18 +21,16 @@
 
 #include "PolygonRepair.h"
 
-//-- minimum size of a polygon in the output (smaller ones are not returned)
-//-- can be changed with --min flag
-double minArea = 0;
-double isrTolerance = 0;
-bool wktOut = false;
-bool shpOut = false;
-bool computeRobustness = false;
-bool pointSet = false;
-bool timeResults = false;
+double  minArea = 0;
+double  isrTolerance = 0;
+bool    shpOut = false;
+bool    computeRobustness = false;
+bool    pointSet = false;
+bool    timeResults = false;
 
-void usage();
-bool savetoshp(OGRMultiPolygon* multiPolygon);
+void    usage();
+bool    savetoshp(OGRMultiPolygon* multiPolygon);
+
 
 int main (int argc, const char * argv[]) {
     
@@ -46,13 +44,14 @@ int main (int argc, const char * argv[]) {
     OGRGeometry *geometry;
     
     for (int argNum = 1; argNum < argc; ++argNum) {
-        //-- whether to compute the robustness
+        //-- whether to compute the robustness or not
         if (strcmp(argv[argNum], "--robustness") == 0) {
             computeRobustness = true;
         }
         
-        //-- whether to use the point set topology paradigm
-        if (strcmp(argv[argNum], "--setdiff") == 0) {
+        //-- whether to use the point set topology paradigm or not
+        //-- if not, odd-even paradigm is used by default
+        else if (strcmp(argv[argNum], "--setdiff") == 0) {
             pointSet = true;
         }
         
@@ -66,9 +65,14 @@ int main (int argc, const char * argv[]) {
         else if (strcmp(argv[argNum], "--isr") == 0) {
             isrTolerance = atof(argv[argNum+1]);
             ++argNum;
-            // TODO : scale dataset if tolerance < 1.0
+            // TODO : scale dataset if tolerance < 1.0 because of CGAL bug
         }
-        
+
+        //-- output a shapefile (out.shp) instead of a WKT
+        else if (strcmp(argv[argNum], "--shpOut") == 0) {
+            shpOut = true;
+        }
+                
         //-- time the results
         else if (strcmp(argv[argNum], "--time") == 0) {
             timeResults = true;
@@ -84,7 +88,7 @@ int main (int argc, const char * argv[]) {
             if (geometry == NULL) {
                 std::cout << "Error: WKT is not valid" << std::endl;
                 return 1;
-            } wktOut = true;
+            } 
         }
         
         //-- reading from WKT stored in first line of a text file
@@ -103,11 +107,11 @@ int main (int argc, const char * argv[]) {
             if (geometry == NULL) {
                 std::cout << "Error: WKT is not valid" << std::endl;
                 return 1;
-            } wktOut = true;
+            } 
         }
         
-        //-- reading from a shapefile
-        else if (strcmp(argv[argNum], "--shp") == 0) {
+        //-- reading from a ogr dataset (most supported: shp, geojson, gml, etc)
+        else if (strcmp(argv[argNum], "--ogr") == 0) {
             OGRRegisterAll();
             OGRDataSource *dataSource = OGRSFDriverRegistrar::Open(argv[argNum+1], false);
             ++argNum;
@@ -125,7 +129,6 @@ int main (int argc, const char * argv[]) {
             feature = dataLayer->GetNextFeature();
             if (feature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
                 geometry = static_cast<OGRPolygon *>(feature->GetGeometryRef());feature->GetGeometryRef();
-                shpOut = true;
             }
             else {
                 std::cout << "First feature ain't a POLYGON." << std::endl;
@@ -141,14 +144,20 @@ int main (int argc, const char * argv[]) {
     }
     
     if (!timeResults) startTime = 0;
-    
+
     PolygonRepair prepair;
+
+    //-- compute robustness
+    if (computeRobustness == true)
+        std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
+
     OGRGeometry *snappedGeometry;
     if (isrTolerance != 0) {
         snappedGeometry = prepair.isr(geometry, isrTolerance);
     } else {
         snappedGeometry = geometry;
     }
+
     
     OGRMultiPolygon *outPolygons;
     if (pointSet) {
@@ -162,20 +171,19 @@ int main (int argc, const char * argv[]) {
     }
     
     //-- output well known text
-    if (wktOut) {
-        char *outputWKT;
-        outPolygons->exportToWkt(&outputWKT);
-        std::cout << outputWKT << std::endl;
+    if (shpOut) {
+      prepair.saveToShp(outPolygons, "out.shp");
+    }
+    else {
+      char *outputWKT;
+      outPolygons->exportToWkt(&outputWKT);
+      std::cout << outputWKT << std::endl;
     }
     
-    //-- save to a shapefile
-    else if (shpOut) {
-        prepair.saveToShp(outPolygons, "out.shp");
-    }
     
     //-- compute robustness
     if (computeRobustness == true)
-        std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
+        std::cout << "Robustness of output polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
     
     //-- time results
     if (timeResults) {
@@ -188,15 +196,15 @@ int main (int argc, const char * argv[]) {
 
 void usage() {
     std::cout << "=== prepair Help ===\n" << std::endl;
-    std::cout << "Usage:   prepair --wkt 'POLYGON(...)'" << std::endl;
+    std::cout << "Usage:   prepair --wkt 'POLYGON(0 0, 1 0, 1 1, 0 0)'" << std::endl;
     std::cout << "OR" << std::endl;
     std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
     std::cout << "OR" << std::endl;
-    std::cout << "Usage:   prepair --shp infile.shp (first polygon of infile.shp is processed)" << std::endl;
+    std::cout << "Usage:   prepair --ogr infile.shp (first polygon of infile.shp is processed)" << std::endl;
     std::cout << "================================================================================" << std::endl;
     std::cout << "Additional options:" << std::endl;
-    std::cout << "--robustness   Compute the robustness of the output" << std::endl;
-    std::cout << "--setdiff      Uses the point set topology paradigm (IN \\ OUT)" << std::endl;
+    std::cout << "--robustness   Compute the robustness of the input/output" << std::endl;
+    std::cout << "--setdiff      Uses the point set topology paradigm (default: odd-even paradigm)" << std::endl;
     std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
     std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
     std::cout << "--time         Benchmark the different stages of the process" << std::endl;
