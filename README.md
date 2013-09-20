@@ -68,7 +68,7 @@ Square with wrong orientation:
     
     POLYGON((0 0, 0 10, 10 10, 10 0, 0 0))
 
-Inner ring touching the outer ring:
+Inner ring with one edge sharing part of an edge of the outer ring:
 
     POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(5 2,5 7,10 7, 10 2, 5 2))
 
