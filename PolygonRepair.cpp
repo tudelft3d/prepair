@@ -414,11 +414,19 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                             triangulation.remove_constraint(va, vb);
                             //std::cout << "Removing constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
                         } else {
-                            triangulation.insert_constraint(va, vb);
+                          int tv = triangulation.number_of_vertices();
+                          triangulation.insert_constraint(va, vb);
+                          if (triangulation.number_of_vertices() > tv)
+                              std::cout << "***** New vertex!" << std::endl;
+                            // triangulation.insert_constraint(va, vb);
                             //std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
                         }
                     } else {
-                        triangulation.insert_constraint(va, vb);
+                      int tv = triangulation.number_of_vertices();
+                      triangulation.insert_constraint(va, vb);
+                      if (triangulation.number_of_vertices() > tv)
+                          std::cout << "***** New vertex!" << std::endl;
+                        // triangulation.insert_constraint(va, vb);
                         //std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
                     }
                 }
