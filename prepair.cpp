@@ -177,7 +177,7 @@ int main (int argc, const char * argv[]) {
     else {
       char *outputWKT;
       outPolygons->exportToWkt(&outputWKT);
-      std::cout << outputWKT << std::endl;
+//      std::cout << outputWKT << std::endl;
     }
     
     
