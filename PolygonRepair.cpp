@@ -385,14 +385,14 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                     } else {
                         int tv = triangulation.number_of_vertices();
                         triangulation.insert_constraint(va, vb);
-                        if (triangulation.number_of_vertices() > tv)
-                            std::cout << "***** New vertex!" << std::endl;
+                        // if (triangulation.number_of_vertices() > tv)
+                            // std::cout << "***** New vertex!" << std::endl;
                     }
                 } else {
                     int tv = triangulation.number_of_vertices();
                     triangulation.insert_constraint(va, vb);
-                    if (triangulation.number_of_vertices() > tv)
-                        std::cout << "***** New vertex!" << std::endl;
+                    // if (triangulation.number_of_vertices() > tv)
+                        // std::cout << "***** New vertex!" << std::endl;
 
 //                    triangulation.insert_constraint(va, vb);
                     //std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
@@ -416,16 +416,16 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
                         } else {
                           int tv = triangulation.number_of_vertices();
                           triangulation.insert_constraint(va, vb);
-                          if (triangulation.number_of_vertices() > tv)
-                              std::cout << "***** New vertex!" << std::endl;
+                          // if (triangulation.number_of_vertices() > tv)
+                              // std::cout << "***** New vertex!" << std::endl;
                             // triangulation.insert_constraint(va, vb);
                             //std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
                         }
                     } else {
                       int tv = triangulation.number_of_vertices();
                       triangulation.insert_constraint(va, vb);
-                      if (triangulation.number_of_vertices() > tv)
-                          std::cout << "***** New vertex!" << std::endl;
+                      // if (triangulation.number_of_vertices() > tv)
+                          // std::cout << "***** New vertex!" << std::endl;
                         // triangulation.insert_constraint(va, vb);
                         //std::cout << "Inserting constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
                     }
