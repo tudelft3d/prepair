@@ -38,7 +38,7 @@ public:
     
 private:
     unsigned char info; // Bitset: unused                          unused        unused            unused
-    //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
+                        //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
 };
 
 #endif

@@ -66,10 +66,13 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 # Creating entries for target: prepair
 # ############################
 
-add_executable( prepair  TriangleInfo.cpp PolygonRepair.cpp prepair.cpp )
+if ( AS_LIBRARY )
+  add_library( prepair SHARED TriangleInfo.cpp PolygonRepair.cpp )
+else()
+  add_executable( prepair  TriangleInfo.cpp PolygonRepair.cpp prepair.cpp )
+endif()
 
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
 
-# Link the executable to CGAL and third-party libraries
+# Link to CGAL and third-party libraries
 target_link_libraries(prepair   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} ${GDAL_LIBRARY})
-
