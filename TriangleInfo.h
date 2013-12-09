@@ -22,23 +22,24 @@
 #ifndef TRIANGLEINFO_H
 #define TRIANGLEINFO_H
 
+// TODO: Maybe create a marker manager in the future
 class TriangleInfo {
 public:
-    TriangleInfo();
-    
-    void clear();
-    bool beenTagged();
-    void beenTagged(bool tagged);
-    bool isInInterior();
-    void isInInterior(bool inInterior);
-    bool isOnBorder();
-    void isOnBorder(bool onBorder);
-    bool beenReconstructed();
-    void beenReconstructed(bool reconstructed);
-    
+  TriangleInfo();
+  
+  void clear();
+  bool beenTagged();
+  void beenTagged(bool tagged);
+  bool isInInterior();
+  void isInInterior(bool inInterior);
+  bool isOnBorder();
+  void isOnBorder(bool onBorder);
+  bool beenReconstructed();
+  void beenReconstructed(bool reconstructed);
+  
 private:
-    unsigned char info; // Bitset: unused                          unused        unused            unused
-                        //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
+  unsigned char info; // Bitset: unused                          unused        unused            unused
+                      //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
 };
 
 #endif

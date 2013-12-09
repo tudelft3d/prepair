@@ -57,10 +57,10 @@ void TriangleInfo::isOnBorder(bool onBorder) {
 }
 
 bool TriangleInfo::beenReconstructed() {
-    return (info & 0x08) == 0x08;
+  return (info & 0x08) == 0x08;
 }
 
 void TriangleInfo::beenReconstructed(bool reconstructed) {
-    if (reconstructed) info |= 0x08;
-    else info &= 0xf7;
+  if (reconstructed) info |= 0x08;
+  else info &= 0xf7;
 }
