@@ -196,7 +196,7 @@ int main (int argc, const char * argv[]) {
 
 void usage() {
     std::cout << "=== prepair Help ===\n" << std::endl;
-    std::cout << "Usage:   prepair --wkt 'POLYGON(0 0, 1 0, 1 1, 0 0)'" << std::endl;
+    std::cout << "Usage:   prepair --wkt 'POLYGON((0 0, 1 0, 1 1, 0 0))'" << std::endl;
     std::cout << "OR" << std::endl;
     std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
     std::cout << "OR" << std::endl;
