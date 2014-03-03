@@ -12,7 +12,12 @@ prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is 
 It is available under a dual license scheme: [GPLv3](http://www.gnu.org/copyleft/gpl.html) and commercial. If you are interested in a commercial license, please contact [Ken Arroyo Ohori](mailto:g.a.k.arroyoohori@tudelft.nl).
 
 ## Details
-Details of how we automatically repair broken polygons, and what results you can expect, are available in our Agile 2012 [paper](http://www.gdmc.nl/ledoux/pdfs/_12agile.pdf) and the accompanying [slides](http://homepage.tudelft.nl/23t4p/pdfs/_12agile_pres.pdf).
+
+Details of how we automatically repair broken polygons, and what results you can expect, are available in our [scientific article](http://homepage.tudelft.nl/23t4p/pdfs/14cgeo_prepair.pdf).
+
+If you use prepair for a scientific project, please cite this article:
+
+> Ledoux, H., Arroyo Ohori, K., and Meijers, M. (2014). A triangulation-based approach to automatically repair GIS polygons. *Computers & Geosciences* 66:121-–131. [ [DOI] ](http://dx.doi.org/10.1016/j.cageo.2014.01.009)
 
 ## How to compile?
 
