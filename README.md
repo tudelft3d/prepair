@@ -13,11 +13,12 @@ It is available under a dual license scheme: [GPLv3](http://www.gnu.org/copyleft
 
 ## Details
 
-Details of how we automatically repair broken polygons, and what results you can expect, are available in our [scientific article](http://homepage.tudelft.nl/23t4p/pdfs/14cgeo_prepair.pdf).
+Details of how we automatically repair broken polygons, and what results you can expect, are available in this scientific article:
 
-If you use prepair for a scientific project, please cite this article:
 
-> Ledoux, H., Arroyo Ohori, K., and Meijers, M. (2014). A triangulation-based approach to automatically repair GIS polygons. *Computers & Geosciences* 66:121-–131. [ [DOI] ](http://dx.doi.org/10.1016/j.cageo.2014.01.009)
+> Ledoux, H., Arroyo Ohori, K., and Meijers, M. (2014). A triangulation-based approach to automatically repair GIS polygons. *Computers & Geosciences* 66:121-–131. [ [DOI] ](http://dx.doi.org/10.1016/j.cageo.2014.01.009) [ [PDF] ](http://homepage.tudelft.nl/23t4p/pdfs/14cgeo_prepair.pdf)
+
+If you use prepair for a scientific project, please cite this article.
 
 ## How to compile?
 
