@@ -1,11 +1,11 @@
 /*
- Copyright (c) 2009-2013,
+ Copyright (c) 2009-2014,
  Ken Arroyo Ohori    g.a.k.arroyoohori@tudelft.nl
  Hugo Ledoux         h.ledoux@tudelft.nl
  Martijn Meijers     b.m.meijers@tudelft.nl
  All rights reserved.
  
- // This file is part of prepair: you can redistribute it and/or modify
+ This file is part of prepair: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.

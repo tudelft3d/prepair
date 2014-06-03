@@ -26,15 +26,15 @@ If you use prepair for a scientific project, please cite this article.
 
 ## How to compile?
 
-prepair is provided as source code, which is very easy to compile it on Linux and Mac. We offer a [Windows 64bit binary](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) where all the dependencies are included.
+prepair is provided as source code, which is very easy to compile it on Linux and Mac. On Windows it is more difficult, so we offer a [Windows 64bit binary](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) where all the dependencies are included.
 
-To compile prepair under Mac or Linux, you need to install the following three (free) libraries:
+To compile prepair, you need to install the following three (free) libraries:
 
 1. [CGAL](http://www.cgal.org)
 2. [OGR](http://www.gdal.org/ogr/)
 3. [CMake](http://www.cmake.org) 
 
-Under Mac, the easiest way to install these is to use [Homebrew](http://brew.sh). Once installed, you simply type the following and you're done:
+Under Mac, if you use Kyngchaos' [GDAL Complete Framework](http://www.kyngchaos.com/software/frameworks#gdal_complete), which is used by QGIS, you already have OGR installed. If you need them, the easiest way to install CGAL and OGR is to use [Homebrew](http://brew.sh). Once installed, you simply type the following and you're done:
 
     $ brew install gdal
     $ brew install cgal 
