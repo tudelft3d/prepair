@@ -28,7 +28,7 @@ If you use prepair for a scientific project, please cite this article.
 
 ## How to get it?
 
-prepair is provided as source code and 64-bit binaries for [Windows](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) and [Mac](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_mac.zip). The Mac binaries require Kyngchaos' [GDAL Complete Framework](http://www.kyngchaos.com/software/frameworks#gdal_complete).
+prepair is provided as source code and 64-bit binaries for [Windows](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) and [Mac](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_mac.zip). The Mac binary requires Kyngchaos' [GDAL Complete Framework](http://www.kyngchaos.com/software/frameworks#gdal_complete).
 
 prepair is also very easy to compile on Mac and Linux using the included CMake file. To compile prepair, you need to install the following three (free) libraries:
 
