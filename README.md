@@ -28,20 +28,20 @@ If you use prepair for a scientific project, please cite this article.
 
 ## How to get it?
 
-prepair is provided as source code and 64-bit binaries for [Windows](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) and [Mac](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_mac.zip). The Mac binary requires Kyngchaos' [GDAL Complete Framework](http://www.kyngchaos.com/software/frameworks#gdal_complete).
+prepair is provided as source code or as 64-bit binaries for [Windows](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_win64.zip) and [Mac](https://github.com/tudelft-gist/prepair/releases/download/v0.7/prepair_mac.zip). The Mac binary requires Kyngchaos' [GDAL 1.11 Complete Framework](http://www.kyngchaos.com/software/frameworks#gdal_complete).
 
-prepair is also very easy to compile on Mac and Linux using the included CMake file. To compile prepair, you need to install the following three (free) libraries:
+prepair is also very easy to compile on Mac and Linux using the included CMake file. It should also work on other Unix-like systems. To compile prepair, you need to have a recent version of the following three (free) libraries:
 
 1. [CGAL](http://www.cgal.org)
 2. [OGR](http://www.gdal.org/ogr/)
 3. [CMake](http://www.cmake.org) 
 
-Under Mac, if you use Kyngchaos' GDAL Complete Framework, which is used by QGIS, you already have OGR installed. If you need them, a good way to install CGAL and OGR is to use [Homebrew](http://brew.sh). Once installed, you simply type the following and you're done:
+Under Mac, if you use Kyngchaos' GDAL Complete Framework, which is used by QGIS, you already have OGR installed. If you need them, a good way to install CGAL and OGR is to use [Homebrew](http://brew.sh):
 
     $ brew install gdal
     $ brew install cgal 
 
-Afterwards run:
+Once all the dependencies are met, just generate the makefile for your system and compile:
 
     $ cmake .
     $ make
@@ -49,7 +49,7 @@ Afterwards run:
 
 ## How to run it?
 
-You can run prepair from the command-line or using our [QGIS plug-in](https://github.com/tudelft-gist/prepair-qgis), which you can get from the official QGIS repository. 
+You can run prepair from the command-line or through our [QGIS plug-in](https://github.com/tudelft-gist/prepair-qgis), which you can get from the official QGIS repository. 
 
 A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or an OGR dataset (shapefile, geojson or GML for instance) is read as input, and a WKT or a shapefile (a MultiPolygon) is given as output:
 
