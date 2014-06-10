@@ -81,7 +81,7 @@ int main (int argc, const char * argv[]) {
     //-- reading from WKT passed directly
     else if (strcmp(argv[argNum], "--wkt") == 0) {
       unsigned int bufferSize = 100000000;
-      char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char));
       strcpy(inputWKT, argv[argNum+1]);
       ++argNum;
       OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
@@ -94,7 +94,7 @@ int main (int argc, const char * argv[]) {
     //-- reading from WKT stored in first line of a text file
     else if (strcmp(argv[argNum], "-f") == 0) {
       unsigned int bufferSize = 100000000;
-      char *inputWKT = (char *)malloc(bufferSize*sizeof(char *));
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char));
       if (argNum + 1 <= argc - 1 && argv[argNum+1][0] != '-') {
         std::ifstream infile(argv[argNum+1], std::ifstream::in);
         infile.getline(inputWKT, bufferSize);
