@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2013,
+# Copyright (c) 2009-2014,
 # Ken Arroyo Ohori    g.a.k.arroyoohori@tudelft.nl
 # Hugo Ledoux         h.ledoux@tudelft.nl
 # Martijn Meijers     b.m.meijers@tudelft.nl
