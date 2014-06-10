@@ -358,6 +358,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         vb = triangulation.insert(Point(ring->getX(currentPoint),
                                         ring->getY(currentPoint)),
                                   triangulation.incident_faces(va));
+        if (va == vb) continue;
         if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
           if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
             triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint
@@ -377,6 +378,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         vb = triangulation.insert(Point(polygon->getExteriorRing()->getX(currentPoint),
                                         polygon->getExteriorRing()->getY(currentPoint)),
                                   triangulation.incident_faces(va));
+        if (va == vb) continue;
         if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
           if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
             triangulation.insert_constraint(va, vb);
@@ -401,6 +403,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
           vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint),
                                           polygon->getInteriorRing(currentRing)->getY(currentPoint)),
                                     triangulation.incident_faces(va));
+          if (va == vb) continue;
           if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
             if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
               triangulation.insert_constraint(va, vb);
@@ -432,6 +435,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
           vb = triangulation.insert(Point(polygon->getExteriorRing()->getX(currentPoint),
                                           polygon->getExteriorRing()->getY(currentPoint)),
                                     triangulation.incident_faces(va));
+          if (va == vb) continue;
           if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
             if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
               triangulation.insert_constraint(va, vb);
@@ -449,6 +453,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
             vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(currentPoint),
                                             polygon->getInteriorRing(currentRing)->getY(currentPoint)),
                                       triangulation.incident_faces(va));
+            if (va == vb) continue;
             if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
               if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
                 triangulation.insert_constraint(va, vb);
