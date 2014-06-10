@@ -25,10 +25,10 @@
 
 class PolygonRepair {
 public:
-  OGRMultiPolygon *repairOddEven(OGRGeometry *geometry, bool timeResults = false);
-  OGRMultiPolygon *repairPointSet(OGRGeometry *geometry, bool timeResults = false);
-  void removeSmallPolygons(OGRMultiPolygon *outPolygons, double minArea);
-  OGRMultiPolygon *isr(OGRGeometry *geometry, double tolerance);
+  void repairOddEven(OGRGeometry *geometry, MultiPolygon &outPolygons, bool timeResults = false);
+  void repairPointSet(OGRGeometry *geometry, MultiPolygon &outPolygons, bool timeResults = false);
+  void removeSmallPolygons(MultiPolygon &outPolygons, double minArea);
+  void isr(OGRGeometry *geometry, double tolerance, MultiPolygon &outPolygons);
   double computeRobustness(OGRGeometry *geometry = NULL);
   bool saveToShp(OGRGeometry* geometry, const char *fileName);
   
@@ -38,13 +38,13 @@ private:
   void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry, bool removeOverlappingConstraints = true);
   void tagOddEven(Triangulation &triangulation);
   void tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries);
-  OGRMultiPolygon *reconstruct(Triangulation &triangulation);
-  std::list<Triangulation::Vertex_handle> *getBoundary(Triangulation::Face_handle face, int edge);
+  void reconstruct(Triangulation &triangulation, MultiPolygon &outPolygons);
+  void getBoundary(Triangulation::Face_handle face, int edge, LinearRing &vertices);
   
   // Debug functions
   void printEdges(Triangulation &triangulation);
   void printTriangle(Triangulation::Face_handle triangle);
-  void printChain(std::list<Triangulation::Vertex_handle> &chain);
+  void printChain(LinearRing &chain);
 };
 
 #endif

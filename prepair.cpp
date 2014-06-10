@@ -148,31 +148,31 @@ int main (int argc, const char * argv[]) {
   PolygonRepair prepair;
   
   //-- compute robustness
-  if (computeRobustness == true)
-    std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
-  
-  OGRGeometry *snappedGeometry;
-  if (isrTolerance != 0) {
-    snappedGeometry = prepair.isr(geometry, isrTolerance);
-  } else {
-    snappedGeometry = geometry;
-  }
-  
-  
-  OGRMultiPolygon *outPolygons;
-  if (pointSet) {
-    outPolygons = prepair.repairPointSet(snappedGeometry, startTime);
-  } else {
-    outPolygons = prepair.repairOddEven(snappedGeometry, startTime);
-  }
-  
-  if (minArea > 0) {
-    prepair.removeSmallPolygons(outPolygons, minArea);
-  }
+//  if (computeRobustness == true)
+//    std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
+//  
+//  OGRGeometry *snappedGeometry;
+//  if (isrTolerance != 0) {
+//    snappedGeometry = prepair.isr(geometry, isrTolerance);
+//  } else {
+//    snappedGeometry = geometry;
+//  }
+//  
+//  
+//  OGRMultiPolygon *outPolygons;
+//  if (pointSet) {
+//    outPolygons = prepair.repairPointSet(snappedGeometry, startTime);
+//  } else {
+//    outPolygons = prepair.repairOddEven(snappedGeometry, startTime);
+//  }
+//  
+//  if (minArea > 0) {
+//    prepair.removeSmallPolygons(outPolygons, minArea);
+//  }
   
   //-- output well known text
   if (shpOut) {
-    prepair.saveToShp(outPolygons, "out.shp");
+//    prepair.saveToShp(outPolygons, "out.shp");
   }
   else {
     char *outputWKT;

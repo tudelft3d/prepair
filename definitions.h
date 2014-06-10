@@ -79,6 +79,68 @@ typedef Triangulation::Point Point;
 typedef K::Segment_2 Segment;
 typedef K::Vector_2 Vector;
 
-// Non CGAL types
-typedef std::vector<std::pair<std::vector<Triangulation::Vertex_handle>, std::vector<std::vector<Triangulation::Vertex_handle> > > > TaggingVector;
+// Custom containers
+
+class LinearRing {
+public:
+  typedef std::list<Triangulation::Vertex_handle>::iterator iterator;
+  std::list<Triangulation::Vertex_handle> vertices;
+  
+  void clear() {
+    vertices.clear();
+  }
+  
+  std::size_t size() {
+    return vertices.size();
+  }
+  
+  Triangulation::Vertex_handle front() {
+    return vertices.front();
+  }
+  
+  Triangulation::Vertex_handle back() {
+    return vertices.back();
+  }
+  
+  void push_back(Triangulation::Vertex_handle vertex) {
+    vertices.push_back(vertex);
+  }
+  
+  iterator begin() {
+    return vertices.begin();
+  }
+  
+  iterator end() {
+    return vertices.end();
+  }
+  
+  void splice(iterator position, LinearRing &other) {
+    vertices.splice(position, other.vertices);
+  }
+  
+  // NOTE: This method only works with valid polygons
+  bool isClockwise() {
+    iterator current = begin();
+    iterator rightmost = current;
+    while (current != end()) {
+      if ((*current)->point().x() > (*rightmost)->point().x()) {
+        rightmost = current;
+      } ++current;
+    } iterator next = rightmost;
+    ++next;
+    if (next == end()) next = begin();
+    iterator previous = rightmost;
+    if (previous == begin()) previous = end();
+    --previous;
+    
+    if ((*previous)->point().y() < (*rightmost)->point().y() &&
+        (*rightmost)->point().y() < (*next)->point().y()) return true;
+    
+    return false;
+  }
+};
+
+typedef std::list<LinearRing> Polygon;
+typedef std::list<Polygon> MultiPolygon;
+
 #endif
