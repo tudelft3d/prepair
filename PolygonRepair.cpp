@@ -21,11 +21,28 @@
 
 #include "PolygonRepair.h"
 
-void PolygonRepair::repairOddEven(OGRGeometry *geometry, MultiPolygon &outPolygons, bool timeResults) {
+void PolygonRepair::ogrToMultiPolygon(OGRGeometry *inGeometry, MultiPolygon &outGeometry) {
+  outGeometry.clear();
+  switch (inGeometry->getGeometryType()) {
+      
+    case wkbLineString: {
+      OGRLinearRing *geometry = static_cast<OGRLinearRing *>(inGeometry);
+      outGeometry.push_back(Polygon());
+      MultiPolygon::reverse_iterator newPolygon = outGeometry.rbegin();
+      newPolygon->push_back(LinearRing());
+      Polygon::reverse_iterator newRing = newPolygon->rbegin();
+      for (int currentVertex = 0; currentVertex < geometry->getNumPoints(); ++currentVertex) {
+        newRing->push
+      }
+    }
+  }
+}
+
+void PolygonRepair::repairOddEven(MultiPolygon &inGeometry, MultiPolygon &outGeometry, bool timeResults) {
   triangulation.clear();
   time_t thisTime, totalTime;
   thisTime = time(NULL);
-  insertConstraints(triangulation, geometry);
+  insertConstraints(triangulation, inGeometry);
   totalTime = time(NULL)-thisTime;
   if (timeResults) std::cout << "Triangulation: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
   thisTime = time(NULL);
@@ -33,7 +50,7 @@ void PolygonRepair::repairOddEven(OGRGeometry *geometry, MultiPolygon &outPolygo
   totalTime = time(NULL)-thisTime;
   if (timeResults) std::cout << "Tagging: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
   thisTime = time(NULL);
-  reconstruct(triangulation, outPolygons);
+  reconstruct(triangulation, outGeometry);
   totalTime = time(NULL)-thisTime;
   if (timeResults) std::cout << "Reconstruction: " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
 }
@@ -51,7 +68,7 @@ void PolygonRepair::repairOddEven(OGRGeometry *geometry, MultiPolygon &outPolygo
 //      repairOddEven(geometry, repairedRings.back(), false);
 //      break;
 //    }
-//      
+//
 //    case wkbPolygon: {
 //      OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
 //      if (polygon->getExteriorRing() != NULL) {
@@ -347,7 +364,7 @@ void PolygonRepair::repairOddEven(OGRGeometry *geometry, MultiPolygon &outPolygo
 //  return true;
 //}
 
-void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry* geometry, bool removeOverlappingConstraints) {
+void PolygonRepair::insertConstraints(Triangulation &triangulation, MultiPolygon &geometry, bool removeOverlappingConstraints) {
   Triangulation::Vertex_handle va, vb;
   Triangulation::Face_handle faceOfEdge;
   int indexOfEdge;

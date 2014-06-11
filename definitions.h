@@ -22,7 +22,6 @@
 // Compile-time options
 // * if the code crashes, try to compile with EXACT_CONSTRUCTIONS so that
 //   robust arithmetic is used
-// * switch to the setdiff paradigm by defining SET_DIFF
 
 #define EXACT_CONSTRUCTIONS
 
@@ -81,10 +80,11 @@ typedef K::Vector_2 Vector;
 
 // Custom containers
 
+template <class Vertex>
 class LinearRing {
 public:
-  typedef std::list<Triangulation::Vertex_handle>::iterator iterator;
-  std::list<Triangulation::Vertex_handle> vertices;
+  typedef typename std::list<Vertex>::iterator iterator;
+  std::list<Vertex> vertices;
   
   void clear() {
     vertices.clear();
@@ -117,7 +117,10 @@ public:
   void splice(iterator position, LinearRing &other) {
     vertices.splice(position, other.vertices);
   }
-  
+};
+
+template <>
+class LinearRing<Triangulation::Vertex_handle> {
   // NOTE: This method only works with valid polygons
   bool isClockwise() {
     iterator current = begin();
