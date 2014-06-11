@@ -24,11 +24,12 @@
 //   robust arithmetic is used
 
 #define EXACT_CONSTRUCTIONS
+#define COORDS_3D
 
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
-#include "TriangleInfo.h"
+#include "Triangle_info.h"
 
 // STL
 #include <iostream>
@@ -44,10 +45,11 @@
 
 // CGAL
 #ifdef EXACT_CONSTRUCTIONS
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+  #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #else
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+  #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #endif
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Triangulation_hierarchy_2.h>
@@ -57,15 +59,15 @@
 
 // Kernel
 #ifdef EXACT_CONSTRUCTIONS
-typedef CGAL::Exact_predicates_exact_constructions_kernel K;
+  typedef CGAL::Exact_predicates_exact_constructions_kernel K;
 #else
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 #endif
 
 typedef CGAL::Triangulation_vertex_base_2<K> TVB;
 typedef CGAL::Triangulation_hierarchy_vertex_base_2<TVB> VB;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
-typedef CGAL::Triangulation_face_base_with_info_2<TriangleInfo, K, FB> FBWI;
+typedef CGAL::Triangulation_face_base_with_info_2<Triangle_info, K, FB> FBWI;
 typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
 typedef CGAL::Exact_predicates_tag PT;
 typedef CGAL::Exact_intersections_tag IT;
@@ -74,76 +76,221 @@ typedef CGAL::Triangulation_hierarchy_2<CDT> CDTH;
 typedef CGAL::Constrained_triangulation_plus_2<CDTH> Triangulation;
 typedef CGAL::Snap_rounding_traits_2<K> SRT;
 
-typedef Triangulation::Point Point;
+typedef K::Point_2 Point;
 typedef K::Segment_2 Segment;
 typedef K::Vector_2 Vector;
 
 // Custom containers
 
 template <class Vertex>
-class LinearRing {
+class Vertex_converter;
+
+template <class Vertex_>
+class Linear_ring {
+private:
+  std::list<Vertex_> v;
 public:
-  typedef typename std::list<Vertex>::iterator iterator;
-  std::list<Vertex> vertices;
+  typedef Vertex_ Vertex;
+  typedef typename std::list<Vertex>::iterator vertex_iterator;
+  typedef typename std::list<Vertex>::reverse_iterator vertex_reverse_iterator;
   
   void clear() {
-    vertices.clear();
+    v.clear();
   }
   
-  std::size_t size() {
-    return vertices.size();
+  std::size_t number_of_vertices() {
+    return v.size();
   }
   
-  Triangulation::Vertex_handle front() {
-    return vertices.front();
+  Vertex &first_vertex() {
+    return v.front();
   }
   
-  Triangulation::Vertex_handle back() {
-    return vertices.back();
+  Vertex &last_vertex() {
+    return v.back();
   }
   
-  void push_back(Triangulation::Vertex_handle vertex) {
-    vertices.push_back(vertex);
+  void add_vertex(Vertex vertex) {
+    v.push_back(vertex);
   }
   
-  iterator begin() {
-    return vertices.begin();
+  vertex_iterator vertices_begin() {
+    return v.begin();
   }
   
-  iterator end() {
-    return vertices.end();
+  vertex_iterator vertices_end() {
+    return v.end();
   }
   
-  void splice(iterator position, LinearRing &other) {
-    vertices.splice(position, other.vertices);
+  vertex_reverse_iterator vertices_rbegin() {
+    return v.rbegin();
   }
-};
-
-template <>
-class LinearRing<Triangulation::Vertex_handle> {
-  // NOTE: This method only works with valid polygons
-  bool isClockwise() {
-    iterator current = begin();
-    iterator rightmost = current;
-    while (current != end()) {
-      if ((*current)->point().x() > (*rightmost)->point().x()) {
+  
+  vertex_reverse_iterator vertices_rend() {
+    return v.rend();
+  }
+  
+  void splice_vertices(vertex_iterator position, Linear_ring &other) {
+    v.splice(position, other.v);
+  }
+  
+  bool is_clockwise() {
+    vertex_iterator current = vertices_begin();
+    vertex_iterator rightmost = current;
+    while (current != vertices_end()) {
+      if (Vertex_converter<Vertex>::to_point(*current).x() > Vertex_converter<Vertex>::to_point(*rightmost).x()) {
         rightmost = current;
       } ++current;
-    } iterator next = rightmost;
+    } vertex_iterator next = rightmost;
     ++next;
-    if (next == end()) next = begin();
-    iterator previous = rightmost;
-    if (previous == begin()) previous = end();
+    if (next == vertices_end()) next = vertices_begin();
+    vertex_iterator previous = rightmost;
+    if (previous == vertices_begin()) previous = vertices_end();
     --previous;
     
-    if ((*previous)->point().y() < (*rightmost)->point().y() &&
-        (*rightmost)->point().y() < (*next)->point().y()) return true;
+    if (Vertex_converter<Vertex>::to_point(*previous).y() < Vertex_converter<Vertex>::to_point(*rightmost).y() &&
+        Vertex_converter<Vertex>::to_point(*rightmost).y() < Vertex_converter<Vertex>::to_point(*next).y()) return true;
     
     return false;
   }
 };
 
-typedef std::list<LinearRing> Polygon;
-typedef std::list<Polygon> MultiPolygon;
+template <class Vertex_>
+class Polygon {
+private:
+  Linear_ring<Vertex_> oring;
+  std::list<Linear_ring<Vertex_> > irings;
+public:
+  typedef Vertex_ Vertex;
+  typedef typename std::list<Linear_ring<Vertex> >::iterator inner_ring_iterator;
+  typedef typename std::list<Linear_ring<Vertex> >::reverse_iterator inner_ring_reverse_iterator;
+  
+  void clear() {
+    oring.clear();
+    irings.clear();
+  }
+  
+  std::size_t number_of_inner_rings() {
+    return irings.size();
+  }
+  
+  Linear_ring<Vertex> &outer_ring() {
+    return oring;
+  }
+  
+  Linear_ring<Vertex> &first_inner_ring() {
+    return irings.front();
+  }
+  
+  Linear_ring<Vertex> &last_inner_ring() {
+    return irings.back();
+  }
+  
+  Linear_ring<Vertex> &add_empty_inner_ring() {
+    irings.push_back(Linear_ring<Vertex>());
+    return irings.back();
+  }
+  
+  inner_ring_iterator inner_rings_begin() {
+    return irings.begin();
+  }
+  
+  inner_ring_iterator inner_rings_end() {
+    return irings.end();
+  }
+  
+  inner_ring_reverse_iterator inner_rings_rbegin() {
+    return irings.rbegin();
+  }
+  
+  inner_ring_reverse_iterator inner_rings_rend() {
+    return irings.rend();
+  }
+};
+
+template <class Vertex_>
+class Multi_polygon {
+private:
+  std::list<Polygon<Vertex_> > p;
+public:
+  typedef Vertex_ Vertex;
+  typedef typename std::list<Polygon<Vertex> >::iterator polygon_iterator;
+  typedef typename std::list<Polygon<Vertex> >::reverse_iterator polygon_reverse_iterator;
+  
+  void clear() {
+    p.clear();
+  }
+  
+  std::size_t number_of_polygons() {
+    return p.size();
+  }
+  
+  Polygon<Vertex> &first_polygon() {
+    return p.front();
+  }
+  
+  Polygon<Vertex> &last_polygon() {
+    return p.back();
+  }
+  
+  Polygon<Vertex> &add_empty_polygon() {
+    p.push_back(Polygon<Vertex>());
+    return p.back();
+  }
+  
+  polygon_iterator polygons_begin() {
+    return p.begin();
+  }
+  
+  polygon_iterator polygons_end() {
+    return p.end();
+  }
+  
+  polygon_reverse_iterator polygons_rbegin() {
+    return p.rbegin();
+  }
+  
+  polygon_reverse_iterator polygons_rend() {
+    return p.rend();
+  }
+  
+  std::string as_wkt() {
+    std::string wkt = "MULTIPOLYGON(";
+    for (polygon_iterator current_polygon = polygons_begin(); current_polygon != polygons_end(); ++current_polygon) {
+      wkt.append("((");
+      for (typename Linear_ring<Vertex>::vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin(); current_vertex != current_polygon->outer_ring().vertices_end(); ++current_vertex) {
+        if (current_vertex != current_polygon->outer_ring().vertices_begin()) wkt.append(", ");
+        wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
+        wkt.append(" ");
+        wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
+      } for (typename Polygon<Vertex>::inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
+        if (current_ring != current_polygon->inner_rings_begin()) wkt.append(", ");
+        for (typename Linear_ring<Vertex>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+          if (current_vertex != current_ring->vertices_begin()) wkt.append(", ");
+          wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
+          wkt.append(" ");
+          wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
+        }
+      } wkt.append(")");
+    } wkt.append(")");
+    return wkt;
+  }
+};
+
+template <>
+class Vertex_converter<Triangulation::Vertex_handle> {
+public:
+  static Point to_point(Triangulation::Vertex_handle vertex) {
+    return vertex->point();
+  }
+};
+
+template <>
+class Vertex_converter<Point> {
+public:
+  static Point to_point(Point vertex) {
+    return vertex;
+  }
+};
 
 #endif

@@ -23,23 +23,23 @@
 #define TRIANGLEINFO_H
 
 // TODO: Maybe create a marker manager in the future
-class TriangleInfo {
+class Triangle_info {
 public:
-  TriangleInfo();
+  Triangle_info();
   
   void clear();
-  bool beenTagged();
-  void beenTagged(bool tagged);
-  bool isInInterior();
-  void isInInterior(bool inInterior);
-  bool isOnBorder();
-  void isOnBorder(bool onBorder);
-  bool beenReconstructed();
-  void beenReconstructed(bool reconstructed);
+  bool been_tagged();
+  void been_tagged(bool tagged);
+  bool is_in_interior();
+  void is_in_interior(bool in_interior);
+  bool is_on_border();
+  void is_on_border(bool on_order);
+  bool been_reconstructed();
+  void been_reconstructed(bool reconstructed);
   
 private:
-  unsigned char info; // Bitset: unused                          unused        unused            unused
-                      //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
+  unsigned char info; // Bitset: unused unused unused unused
+                      //         reconstructed border interior tagged
 };
 
 #endif

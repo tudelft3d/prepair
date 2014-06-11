@@ -19,48 +19,48 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "TriangleInfo.h"
+#include "Triangle_info.h"
 
-TriangleInfo::TriangleInfo() {
+Triangle_info::Triangle_info() {
   info = 0x00;
 }
 
-void TriangleInfo::clear() {
+void Triangle_info::clear() {
   info = 0x00;
 }
 
-bool TriangleInfo::beenTagged() {
+bool Triangle_info::been_tagged() {
   return (info & 0x01) == 0x01;
 }
 
-void TriangleInfo::beenTagged(bool tagged) {
+void Triangle_info::been_tagged(bool tagged) {
   if (tagged) info |= 0x01;
   else info &= 0xfe;
 }
 
-bool TriangleInfo::isInInterior() {
+bool Triangle_info::is_in_interior() {
   return (info & 0x02) == 0x02;
 }
 
-void TriangleInfo::isInInterior(bool inInterior) {
-  if (inInterior) info |= 0x03;
+void Triangle_info::is_in_interior(bool in_interior) {
+  if (in_interior) info |= 0x03;
   else info = (info & 0xfd) | 0x01;
 }
 
-bool TriangleInfo::isOnBorder() {
+bool Triangle_info::is_on_border() {
   return (info & 0x04) == 0x04;
 }
 
-void TriangleInfo::isOnBorder(bool onBorder) {
-  if (onBorder) info |= 0x04;
+void Triangle_info::is_on_border(bool on_border) {
+  if (on_border) info |= 0x04;
   else info &= 0xfb;
 }
 
-bool TriangleInfo::beenReconstructed() {
+bool Triangle_info::been_reconstructed() {
   return (info & 0x08) == 0x08;
 }
 
-void TriangleInfo::beenReconstructed(bool reconstructed) {
+void Triangle_info::been_reconstructed(bool reconstructed) {
   if (reconstructed) info |= 0x08;
   else info &= 0xf7;
 }
