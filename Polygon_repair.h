@@ -44,6 +44,9 @@ private:
   void tag_point_set(Triangulation &triangulation, std::list<Multi_polygon<Point> > &geometries, std::list<bool> &geometries_flipped);
   void reconstruct(Triangulation &triangulation, Multi_polygon<Point> &out_geometry);
   void get_boundary(Triangulation::Face_handle face, int edge, Linear_ring<Triangulation::Vertex_handle> &out_vertices);
+  
+  // Debug functions
+  void print_triangle(Triangulation::Face_handle triangle);
 };
 
 // NOTE: Has to be here because C++'s compilation model doesn't allow templated classes in implementation files

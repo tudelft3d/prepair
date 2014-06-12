@@ -172,6 +172,7 @@ void Polygon_repair::repair_point_set(Polygon<Point> &in_geometry, Multi_polygon
   reconstruct(triangulation, out_geometry);
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  std::cout << "Repaired polygon: " << out_geometry.as_wkt() << std::endl;
 }
 
 // TODO: This should compute the union of the repaired polygons instead
@@ -311,6 +312,7 @@ void Polygon_repair::tag_point_set(Triangulation &triangulation, std::list<Multi
   std::list<Multi_polygon<Point> >::iterator current_repaired_ring = geometries.begin();
   std::list<bool>::iterator current_repaired_ring_flipped = geometries_flipped.begin();
   while (current_repaired_ring != geometries.end()) {
+    std::cout << "Finding the faces incident to the outer rings of " << current_repaired_ring->as_wkt() << std::endl;
     for (Multi_polygon<Point>::Polygon_iterator current_polygon = current_repaired_ring->polygons_begin(); current_polygon != current_repaired_ring->polygons_end(); ++current_polygon) {
       tagging_stack = std::stack<Triangulation::Face_handle>();
       
@@ -421,6 +423,7 @@ void Polygon_repair::tag_point_set(Triangulation &triangulation, std::list<Multi
   current_repaired_ring = geometries.begin();
   current_repaired_ring_flipped = geometries_flipped.begin();
   while (current_repaired_ring != geometries.end()) {
+    std::cout << "Finding the faces incident to the inner rings of " << current_repaired_ring->as_wkt() << std::endl;
     for (Multi_polygon<Point>::Polygon_iterator current_polygon = current_repaired_ring->polygons_begin(); current_polygon != current_repaired_ring->polygons_end(); ++current_polygon) {
       tagging_stack = std::stack<Triangulation::Face_handle>();
       
@@ -720,4 +723,8 @@ void Polygon_repair::get_boundary(Triangulation::Face_handle face, int edge, Lin
     get_boundary(face->neighbor(face->ccw(edge)), face->neighbor(face->ccw(edge))->index(face), v2);
 		out_vertices.splice_vertices(out_vertices.vertices_end(), v2);
 	}
+}
+
+void Polygon_repair::print_triangle(Triangulation::Face_handle triangle) {
+  std::cout << "TRIANGLE(" << triangle->vertex(0)->point() << ", " << triangle->vertex(1)->point() << ", " << triangle->vertex(2)->point() << ")";
 }
