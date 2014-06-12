@@ -30,7 +30,11 @@ void Polygon_repair::ogr_to_multi_polygon(OGRGeometry *in_geometry, Multi_polygo
       Polygon<Point> &new_polygon = out_geometry.add_empty_polygon();
       Linear_ring<Point> &new_ring = new_polygon.outer_ring();
       for (int current_vertex = 0; current_vertex < in_geometry_as_linear_ring->getNumPoints(); ++current_vertex) {
+#ifdef COORDS_3D
+        new_ring.add_vertex(Point(in_geometry_as_linear_ring->getX(current_vertex), in_geometry_as_linear_ring->getY(current_vertex), in_geometry_as_linear_ring->getZ(current_vertex)));
+#else
         new_ring.add_vertex(Point(in_geometry_as_linear_ring->getX(current_vertex), in_geometry_as_linear_ring->getY(current_vertex)));
+#endif
       } break;
     }
       
@@ -39,11 +43,19 @@ void Polygon_repair::ogr_to_multi_polygon(OGRGeometry *in_geometry, Multi_polygo
       Polygon<Point> &new_polygon = out_geometry.add_empty_polygon();
       Linear_ring<Point> &new_outer_ring = new_polygon.outer_ring();
       for (int current_vertex = 0; current_vertex < in_geometry_as_polygon->getExteriorRing()->getNumPoints(); ++current_vertex) {
+#ifdef COORDS_3D
+        new_outer_ring.add_vertex(Point(in_geometry_as_polygon->getExteriorRing()->getX(current_vertex), in_geometry_as_polygon->getExteriorRing()->getY(current_vertex), in_geometry_as_polygon->getExteriorRing()->getZ(current_vertex)));
+#else
         new_outer_ring.add_vertex(Point(in_geometry_as_polygon->getExteriorRing()->getX(current_vertex), in_geometry_as_polygon->getExteriorRing()->getY(current_vertex)));
+#endif
       } for (int current_inner_ring = 0; current_inner_ring < in_geometry_as_polygon->getNumInteriorRings(); ++current_inner_ring) {
         Linear_ring<Point> &new_inner_ring = new_polygon.add_empty_inner_ring();
         for (int current_vertex = 0; current_vertex < in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getNumPoints(); ++current_vertex) {
+#ifdef COORDS_3D
+          new_inner_ring.add_vertex(Point(in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getX(current_vertex), in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getY(current_vertex), in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getZ(current_vertex)));
+#else
           new_inner_ring.add_vertex(Point(in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getX(current_vertex), in_geometry_as_polygon->getInteriorRing(current_inner_ring)->getY(current_vertex)));
+#endif
         }
       } break;
     }
@@ -55,11 +67,19 @@ void Polygon_repair::ogr_to_multi_polygon(OGRGeometry *in_geometry, Multi_polygo
         Polygon<Point> &new_polygon = out_geometry.add_empty_polygon();
         Linear_ring<Point> &new_outer_ring = new_polygon.outer_ring();
         for (int current_vertex = 0; current_vertex < polygon_from_in_geometry->getExteriorRing()->getNumPoints(); ++current_vertex) {
+#ifdef COORDS_3D
+          new_outer_ring.add_vertex(Point(polygon_from_in_geometry->getExteriorRing()->getX(current_vertex), polygon_from_in_geometry->getExteriorRing()->getY(current_vertex), polygon_from_in_geometry->getExteriorRing()->getZ(current_vertex)));
+#else
           new_outer_ring.add_vertex(Point(polygon_from_in_geometry->getExteriorRing()->getX(current_vertex), polygon_from_in_geometry->getExteriorRing()->getY(current_vertex)));
+#endif
         } for (int current_inner_ring = 0; current_inner_ring < polygon_from_in_geometry->getNumInteriorRings(); ++current_inner_ring) {
           Linear_ring<Point> &new_inner_ring = new_polygon.add_empty_inner_ring();
           for (int current_vertex = 0; current_vertex < polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getNumPoints(); ++current_vertex) {
+#ifdef COORDS_3D
+            new_inner_ring.add_vertex(Point(polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getX(current_vertex), polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getY(current_vertex), polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getZ(current_vertex)));
+#else
             new_inner_ring.add_vertex(Point(polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getX(current_vertex), polygon_from_in_geometry->getInteriorRing(current_inner_ring)->getY(current_vertex)));
+#endif
           }
         }
       } break;
@@ -119,7 +139,6 @@ void Polygon_repair::repair_point_set(Linear_ring<Point> &in_geometry, Multi_pol
 }
 
 void Polygon_repair::repair_point_set(Polygon<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
-  triangulation.clear();
   std::list<bool> repaired_rings_flipped; // bool indicates if repaired_rings's outer/inner are flipped
   std::list<Multi_polygon<Point> > repaired_rings;
   time_t this_time, total_time;
@@ -129,15 +148,18 @@ void Polygon_repair::repair_point_set(Polygon<Point> &in_geometry, Multi_polygon
   repaired_rings_flipped.push_back(false);
   repaired_rings.push_back(Multi_polygon<Point>());
   repair_odd_even(in_geometry.outer_ring(), repaired_rings.back(), false);
+//  std::cout << "Repaired ring: " << repaired_rings.back().as_wkt() << std::endl;
   for (Polygon<Point>::Inner_ring_iterator current_ring = in_geometry.inner_rings_begin(); current_ring != in_geometry.inner_rings_end(); ++current_ring) {
     repaired_rings_flipped.push_back(true);
     repaired_rings.push_back(Multi_polygon<Point>());
     repair_odd_even(*current_ring, repaired_rings.back(), false);
+//    std::cout << "Repaired ring: " << repaired_rings.back().as_wkt() << std::endl;
   } total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Repairing individual rings: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
   // Now compute set difference
   this_time = time(NULL);
+  triangulation.clear();
   for (std::list<Multi_polygon<Point> >::iterator current_repaired_ring = repaired_rings.begin(); current_repaired_ring != repaired_rings.end(); ++current_repaired_ring) {
     insert_constraints(triangulation, *current_repaired_ring);
   } total_time = time(NULL)-this_time;
@@ -152,18 +174,37 @@ void Polygon_repair::repair_point_set(Polygon<Point> &in_geometry, Multi_polygon
   if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
 }
 
+// TODO: This should compute the union of the repaired polygons instead
 void Polygon_repair::repair_point_set(Multi_polygon<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
-  triangulation.clear();
-  std::vector<Multi_polygon<Point> > repaired_polygons;
+  std::list<Multi_polygon<Point> > repaired_polygons;
+  std::list<bool> repaired_polygons_flipped;
   time_t this_time, total_time;
   this_time = time(NULL);
   
   // Repair polygons individually
   for (Multi_polygon<Point>::Polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
+    repaired_polygons_flipped.push_back(false);
     repaired_polygons.push_back(Multi_polygon<Point>());
     repair_point_set(*current_polygon, repaired_polygons.back(), false);
+//    std::cout << "Repaired polygon: " << repaired_polygons.back().as_wkt() << std::endl;
   } total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Repairing individual polygons: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  
+  // Now compute set difference
+  this_time = time(NULL);
+  triangulation.clear();
+  for (std::list<Multi_polygon<Point> >::iterator current_repaired_polygon = repaired_polygons.begin(); current_repaired_polygon != repaired_polygons.end(); ++current_repaired_polygon) {
+    insert_constraints(triangulation, *current_repaired_polygon);
+  } total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  this_time = time(NULL);
+  tag_point_set(triangulation, repaired_polygons, repaired_polygons_flipped);
+  total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  this_time = time(NULL);
+  reconstruct(triangulation, out_geometry);
+  total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
 }
 
 void Polygon_repair::insert_constraints(Triangulation &triangulation, Linear_ring<Point> &in_geometry, bool remove_overlapping_constraints) {
@@ -527,6 +568,7 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
       get_boundary(seeding_face->neighbor(0), seeding_face->neighbor(0)->index(seeding_face), l0);
       vertices.splice_vertices(vertices.vertices_end(), l0);
     } vertices.add_vertex(seeding_face->vertex(1));
+//    std::cout << vertices.as_wkt() << std::endl;
     
     // Find cutting vertices
     std::set<Triangulation::Vertex_handle> visited_vertices;
@@ -540,30 +582,30 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
     std::list<Linear_ring<Triangulation::Vertex_handle> > chains_stack;
     std::set<Triangulation::Vertex_handle> vertices_where_chains_begin;
     rings.push_back(Linear_ring<Triangulation::Vertex_handle>());
-    std::list<Linear_ring<Triangulation::Vertex_handle> >::reverse_iterator new_chain = rings.rbegin();
     for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = vertices.vertices_begin(); current_vertex != vertices.vertices_end(); ++current_vertex) {
+//      std::cout << "Vertex: " << (*current_vertex)->point() << " New chain: " << rings.back().as_wkt() << std::endl;
       
       // New chain
       if (repeated_vertices.count(*current_vertex) > 0) {
         // Closed by itself
-        if (new_chain->first_vertex() == *current_vertex) {
+        if (rings.back().first_vertex() == *current_vertex) {
           // Degenerate (insufficient vertices to be valid)
-          if (new_chain->number_of_vertices() < 3) {
-            std::cerr << "Reconstruction: polygon with less than 3 vertices. Skipped." << std::endl;
-            new_chain->clear();
+          if (rings.back().number_of_vertices() < 3) {
+//            std::cout << "\tLess than 3 vertices. Cleared." << std::endl;
+            rings.back().clear();
           }
           else {
-            Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator second_element = new_chain->vertices_begin();
+            Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator second_element = rings.back().vertices_begin();
             ++second_element;
             // Degenerate (zero area)
-            if (new_chain->last_vertex() == *second_element) {
-              // std::cerr << "Reconstruction: bridge?. Skipped." << std::endl;
-              new_chain->clear();
+            if (rings.back().last_vertex() == *second_element) {
+//              std::cout << "\tZero area. Cleared." << std::endl;
+              rings.back().clear();
             }
             // Valid
             else {
+//              std::cout << "\tValid. Pushed." << std::endl;
               rings.push_back(Linear_ring<Triangulation::Vertex_handle>());
-              new_chain = rings.rbegin();
             }
           }
         }
@@ -571,81 +613,89 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
         else {
           // Closed with others in stack
           if (vertices_where_chains_begin.count(*current_vertex)) {
-            while (new_chain->first_vertex() != *current_vertex) {
-              new_chain->splice_vertices(new_chain->vertices_begin(), chains_stack.back());
+//            std::cout << "\tClosed with others on stack." << std::endl;
+            while (rings.back().first_vertex() != *current_vertex) {
+              rings.back().splice_vertices(rings.back().vertices_begin(), chains_stack.back());
               chains_stack.pop_back();
             } vertices_where_chains_begin.erase(*current_vertex);
             // Degenerate (insufficient vertices to be valid)
-            if (new_chain->number_of_vertices() < 3) {
-              std::cerr << "Reconstruction: polygon with less than 3 vertices. Skipped." << std::endl;
-              new_chain->clear();
+            if (rings.back().number_of_vertices() < 3) {
+//              std::cout << "\tLess than 3 vertices. Cleared." << std::endl;
+              rings.back().clear();
             }
             else {
-              std::list<Triangulation::Vertex_handle>::iterator second_element = new_chain->vertices_begin();
+              std::list<Triangulation::Vertex_handle>::iterator second_element = rings.back().vertices_begin();
               ++second_element;
               // Degenerate (zero area)
-              if (new_chain->last_vertex() == *second_element) {
-                // std::cerr << "Reconstruction: bridge?. Skipped." << std::endl;
-                new_chain->clear();
+              if (rings.back().last_vertex() == *second_element) {
+//                std::cout << "\tZero area. Cleared." << std::endl;
+                rings.back().clear();
               }
               // Valid
               else {
+//                std::cout << "\tValid. Pushed." << std::endl;
                 rings.push_back(Linear_ring<Triangulation::Vertex_handle>());
-                new_chain = rings.rbegin();
               }
             }
           }
           // Open
           else {
+//            std::cout << "\tOpen." << std::endl;
             // Not first chain
-            if (repeated_vertices.count(new_chain->first_vertex()) > 0) vertices_where_chains_begin.insert(new_chain->first_vertex());
+            if (repeated_vertices.count(rings.back().first_vertex()) > 0) {
+//              std::cout << "\tMarked vertex as repeated." << std::endl;
+              vertices_where_chains_begin.insert(rings.back().first_vertex());
+            }
+//            std::cout << "\tPushed chain to stack." << std::endl;
             chains_stack.push_back(Linear_ring<Triangulation::Vertex_handle>());
             chains_stack.back().splice_vertices(chains_stack.back().vertices_begin(), rings.back());
           }
         }
-      } new_chain->add_vertex(*current_vertex);
+      } rings.back().add_vertex(*current_vertex);
+//      std::cout << "\tAdded vertex to chain. New chain: " << rings.back().as_wkt() << std::endl;
     }
     // Final ring
     while (chains_stack.size() > 0) {
-      new_chain->splice_vertices(new_chain->vertices_begin(), chains_stack.back());
+      rings.back().splice_vertices(rings.back().vertices_begin(), chains_stack.back());
       chains_stack.pop_back();
     }
+//    std::cout << "\tMaking last ring. New chain: " << rings.back().as_wkt() << std::endl;
     // Degenerate (insufficient vertices to be valid)
-    if (new_chain->number_of_vertices() < 3) {
-      std::cerr << "Reconstruction: polygon with less than 3 vertices. Skipped." << std::endl;
-      new_chain->clear();
-    }
-    else {
-      std::list<Triangulation::Vertex_handle>::iterator second_element = new_chain->vertices_begin();
+    if (rings.back().number_of_vertices() < 3) {
+//      std::cout << "\tLess than 3 vertices. Cleared." << std::endl;
+      rings.back().clear();
+    } else {
+      std::list<Triangulation::Vertex_handle>::iterator second_element = rings.back().vertices_begin();
       ++second_element;
       // Degenerate (zero area)
-      if (new_chain->last_vertex() == *second_element) {
-        // std::cerr << "Reconstruction: bridge?. Skipped." << std::endl;
-        new_chain->clear();
+      if (rings.back().last_vertex() == *second_element) {
+//        std::cout << "\tZero area. Cleared." << std::endl;
+        rings.back().clear();
       }
-      // Valid
-      else {
-        rings.push_back(Linear_ring<Triangulation::Vertex_handle>());
-        new_chain = rings.rbegin();
-      }
-    } // Remove last ring if too small
-    if (new_chain->number_of_vertices() < 3) rings.pop_back();
+    }
+    
+    // Remove last ring if too small (or empty)
+    if (rings.back().number_of_vertices() < 3) {
+      rings.pop_back();
+    }
     
     // Make rings
     if (rings.size() == 0) continue;
     Polygon<Point> &new_polygon = out_geometry.add_empty_polygon();
+//    std::cout << rings.size() << " rings available:" << std::endl;
     for (std::list<Linear_ring<Triangulation::Vertex_handle> >::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
-      if (!current_ring->is_clockwise()) {
-        for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
-          new_polygon.outer_ring().add_vertex((*current_vertex)->point());
-        } break;
-      }
-    } for (std::list<Linear_ring<Triangulation::Vertex_handle> >::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
+//      std::cout << "\t" << current_ring->as_wkt() << std::endl;
       if (current_ring->is_clockwise()) {
+//        std::cout << "\t\tCW: Outer" << std::endl;
+        for (Linear_ring<Triangulation::Vertex_handle>::Vertex_reverse_iterator current_vertex = current_ring->vertices_rbegin(); current_vertex != current_ring->vertices_rend(); ++current_vertex) {
+          new_polygon.outer_ring().add_vertex((*current_vertex)->point());
+        } new_polygon.outer_ring().add_vertex(new_polygon.outer_ring().first_vertex());
+      } else {
+//        std::cout << "\t\tCCW: Inner" << std::endl;
         Linear_ring<Point> &new_ring = new_polygon.add_empty_inner_ring();
         for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
           new_ring.add_vertex((*current_vertex)->point());
-        }
+        } new_ring.add_vertex(new_ring.first_vertex());
       }
     }
   }

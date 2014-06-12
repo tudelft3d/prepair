@@ -23,8 +23,8 @@
 // * if the code crashes, try to compile with EXACT_CONSTRUCTIONS so that
 //   robust arithmetic is used
 
-#define EXACT_CONSTRUCTIONS
-#define COORDS_3D
+//#define EXACT_CONSTRUCTIONS
+//#define COORDS_3D
 
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
@@ -49,6 +49,9 @@
 #else
   #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #endif
+#ifdef COORDS_3D
+  #include <CGAL/Projection_traits_xy_3.h>
+#endif
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
@@ -59,9 +62,17 @@
 
 // Kernel
 #ifdef EXACT_CONSTRUCTIONS
-  typedef CGAL::Exact_predicates_exact_constructions_kernel K;
+  typedef CGAL::Exact_predicates_exact_constructions_kernel TK;
+  typedef CGAL::Exact_intersections_tag IT;
 #else
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel TK;
+  typedef CGAL::Exact_predicates_tag IT;
+#endif
+
+#ifdef COORDS_3D
+  typedef CGAL::Projection_traits_xy_3<TK> K;
+#else
+  typedef TK K;
 #endif
 
 typedef CGAL::Triangulation_vertex_base_2<K> TVB;
@@ -69,12 +80,9 @@ typedef CGAL::Triangulation_hierarchy_vertex_base_2<TVB> VB;
 typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
 typedef CGAL::Triangulation_face_base_with_info_2<Triangle_info, K, FB> FBWI;
 typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
-typedef CGAL::Exact_predicates_tag PT;
-typedef CGAL::Exact_intersections_tag IT;
-typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, PT> CDT;
+typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, IT> CDT;
 typedef CGAL::Triangulation_hierarchy_2<CDT> CDTH;
 typedef CGAL::Constrained_triangulation_plus_2<CDTH> Triangulation;
-typedef CGAL::Snap_rounding_traits_2<K> SRT;
 
 typedef K::Point_2 Point;
 typedef K::Segment_2 Segment;
@@ -136,22 +144,43 @@ public:
   
   bool is_clockwise() {
     Vertex_iterator current = vertices_begin();
-    Vertex_iterator rightmost = current;
+    Vertex_iterator vertex_on_convex_hull = current;
     while (current != vertices_end()) {
-      if (Vertex_converter<Vertex>::to_point(*current).x() > Vertex_converter<Vertex>::to_point(*rightmost).x()) {
-        rightmost = current;
+      if (CGAL::lexicographically_xy_smaller(Vertex_converter<Vertex>::to_point(*current), Vertex_converter<Vertex>::to_point(*vertex_on_convex_hull))) {
+        vertex_on_convex_hull = current;
       } ++current;
-    } Vertex_iterator next = rightmost;
+    }
+    
+    Vertex_iterator next = vertex_on_convex_hull;
     ++next;
     if (next == vertices_end()) next = vertices_begin();
-    Vertex_iterator previous = rightmost;
+    if (Vertex_converter<Vertex>::to_point(*vertex_on_convex_hull) == Vertex_converter<Vertex>::to_point(*next)) ++next;
+    Vertex_iterator previous = vertex_on_convex_hull;
     if (previous == vertices_begin()) previous = vertices_end();
     --previous;
+    if (Vertex_converter<Vertex>::to_point(*previous) == Vertex_converter<Vertex>::to_point(*vertex_on_convex_hull)) --previous;
     
-    if (Vertex_converter<Vertex>::to_point(*previous).y() < Vertex_converter<Vertex>::to_point(*rightmost).y() &&
-        Vertex_converter<Vertex>::to_point(*rightmost).y() < Vertex_converter<Vertex>::to_point(*next).y()) return true;
+//    std::cout << "Previous: " << Vertex_converter<Vertex>::to_point(*previous) << std::endl;
+//    std::cout << "On hull: " << Vertex_converter<Vertex>::to_point(*vertex_on_convex_hull) << std::endl;
+//    std::cout << "Next: " << Vertex_converter<Vertex>::to_point(*next) << std::endl;
     
-    return false;
+    if (CGAL::left_turn(Vertex_converter<Vertex>::to_point(*previous), Vertex_converter<Vertex>::to_point(*vertex_on_convex_hull), Vertex_converter<Vertex>::to_point(*next))) return false;
+    else return true;
+  }
+  
+  std::string as_wkt() {
+    std::string wkt = "POLYGON((";
+    for (Vertex_iterator current_vertex = vertices_begin(); current_vertex != vertices_end(); ++current_vertex) {
+      if (current_vertex != vertices_begin()) wkt.append(", ");
+      wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
+      wkt.append(" ");
+      wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
+#ifdef COORDS_3D
+      wkt.append(" ");
+      wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).z())));
+#endif
+    } wkt.append("))");
+    return wkt;
   }
 };
 
@@ -263,6 +292,10 @@ public:
         wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
         wkt.append(" ");
         wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
+#ifdef COORDS_3D
+        wkt.append(" ");
+        wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).z())));
+#endif
       } for (typename Polygon<Vertex>::Inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
         if (current_ring != current_polygon->inner_rings_begin()) wkt.append(", ");
         for (typename Linear_ring<Vertex>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
@@ -270,6 +303,10 @@ public:
           wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
           wkt.append(" ");
           wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
+#ifdef COORDS_3D
+          wkt.append(" ");
+          wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).z())));
+#endif
         }
       } wkt.append(")");
     } wkt.append(")");

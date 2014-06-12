@@ -25,15 +25,15 @@ void usage() {
   std::cout << "=== prepair Help ===\n" << std::endl;
   std::cout << "Usage:   prepair --wkt 'POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))'" << std::endl;
   std::cout << "OR" << std::endl;
-  std::cout << "Usage:   prepair -f infile.txt (where infile.txt contains a polygon in WKT)" << std::endl;
+  std::cout << "Usage:   prepair -f infile (where infile contains a polygon in WKT)" << std::endl;
   std::cout << "OR" << std::endl;
-  std::cout << "Usage:   prepair --ogr infile.shp (first polygon of infile.shp is processed)" << std::endl;
+  std::cout << "Usage:   prepair --ogr infile" << std::endl;
   std::cout << "================================================================================" << std::endl;
   std::cout << "Additional options:" << std::endl;
-  std::cout << "--robustness   Compute the robustness of the input/output" << std::endl;
-  std::cout << "--setdiff      Uses the point set topology paradigm (default: odd-even paradigm)" << std::endl;
-  std::cout << "--min_area AREA Only output polygons larger than AREA" << std::endl;
-  std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
+//  std::cout << "--robustness   Compute the robustness of the input/output" << std::endl;
+  std::cout << "--setdiff      Uses the point set paradigm (default: odd-even paradigm)" << std::endl;
+  std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
+//  std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
   std::cout << "--time         Benchmark the different stages of the process" << std::endl;
   
 }
@@ -42,9 +42,7 @@ int main (int argc, const char * argv[]) {
   
   time_t start_time = time(NULL);
 //  double min_area = 0;
-//  double isr_tolerance = 0;
 //  bool shp_out = false;
-//  bool compute_robustness = false;
   bool point_set = false;
   bool time_results = false;
   
@@ -63,12 +61,12 @@ int main (int argc, const char * argv[]) {
     }
     
     //-- time the results
-    if (strcmp(argv[arg_num], "--time") == 0) {
+    else if (strcmp(argv[arg_num], "--time") == 0) {
       time_results = true;
     }
     
     //-- reading from WKT passed directly
-    if (strcmp(argv[arg_num], "--wkt") == 0) {
+    else if (strcmp(argv[arg_num], "--wkt") == 0) {
       if (arg_num + 1 > argc || argv[arg_num+1][0] == '-') {
         std::cerr << "Error: Invalid parameters" << std::endl;
         return 1;
@@ -148,6 +146,7 @@ int main (int argc, const char * argv[]) {
   
   Multi_polygon<Point> in_polygons, out_polygons;
   Polygon_repair::ogr_to_multi_polygon(geometry, in_polygons);
+//  std::cout << "Input (converted): " << in_polygons.as_wkt() << std::endl;
   
   if (point_set) {
     prepair.repair_point_set(in_polygons, out_polygons, start_time);
