@@ -41,10 +41,10 @@ void usage() {
 int main (int argc, const char * argv[]) {
   
   time_t start_time = time(NULL);
-  double min_area = 0;
-  double isr_tolerance = 0;
-  bool shp_out = false;
-  bool compute_robustness = false;
+//  double min_area = 0;
+//  double isr_tolerance = 0;
+//  bool shp_out = false;
+//  bool compute_robustness = false;
   bool point_set = false;
   bool time_results = false;
   
@@ -56,13 +56,19 @@ int main (int argc, const char * argv[]) {
   OGRGeometry *geometry;
   
   for (int arg_num = 1; arg_num < argc; ++arg_num) {
+    //-- whether to use the point set topology paradigm or not
+    //-- if not, odd-even paradigm is used by default
+    if (strcmp(argv[arg_num], "--setdiff") == 0) {
+      point_set = true;
+    }
+    
     //-- time the results
     if (strcmp(argv[arg_num], "--time") == 0) {
       time_results = true;
     }
     
     //-- reading from WKT passed directly
-    else if (strcmp(argv[arg_num], "--wkt") == 0) {
+    if (strcmp(argv[arg_num], "--wkt") == 0) {
       if (arg_num + 1 > argc || argv[arg_num+1][0] == '-') {
         std::cerr << "Error: Invalid parameters" << std::endl;
         return 1;
@@ -138,11 +144,16 @@ int main (int argc, const char * argv[]) {
   
   char *input_wkt;
   geometry->exportToWkt(&input_wkt);
-  std::cout << "Input: " << input_wkt << std::endl;
+//  std::cout << "Input: " << input_wkt << std::endl;
   
   Multi_polygon<Point> in_polygons, out_polygons;
   Polygon_repair::ogr_to_multi_polygon(geometry, in_polygons);
-  prepair.repair_odd_even(in_polygons, out_polygons, start_time);
+  
+  if (point_set) {
+    prepair.repair_point_set(in_polygons, out_polygons, start_time);
+  } else {
+    prepair.repair_odd_even(in_polygons, out_polygons, start_time);
+  }
   
   //-- output well known text
   OGRGeometry *out_geometry = Polygon_repair::multi_polygon_to_ogr(out_polygons);

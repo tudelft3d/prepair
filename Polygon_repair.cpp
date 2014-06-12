@@ -66,7 +66,7 @@ void Polygon_repair::ogr_to_multi_polygon(OGRGeometry *in_geometry, Multi_polygo
     }
       
     default:
-      std::cerr << "PolygonRepair::ogrToMultiPolygon: Cannot understand input." << std::endl;
+      std::cerr << "Polygon_repair::ogr_to_multi_polygon: Cannot understand input." << std::endl;
       break;
   }
 }
@@ -82,12 +82,12 @@ OGRGeometry *Polygon_repair::multi_polygon_to_ogr(Multi_polygon<Point> &in_geome
     OGRPolygon *new_polygon = new OGRPolygon();
     Linear_ring<Point> &outer_ring = in_geometry.first_polygon().outer_ring();
     OGRLinearRing *new_ring = new OGRLinearRing();
-    for (Linear_ring<Point>::vertex_iterator current_vertex = outer_ring.vertices_begin(); current_vertex != outer_ring.vertices_end(); ++current_vertex) {
+    for (Linear_ring<Point>::Vertex_iterator current_vertex = outer_ring.vertices_begin(); current_vertex != outer_ring.vertices_end(); ++current_vertex) {
       new_ring->addPoint(CGAL::to_double(current_vertex->x()), CGAL::to_double(current_vertex->y()));
     } new_polygon->addRingDirectly(new_ring);
-    for (Polygon<Point>::inner_ring_iterator current_ring = in_geometry.first_polygon().inner_rings_begin(); current_ring != in_geometry.first_polygon().inner_rings_end(); ++current_ring) {
+    for (Polygon<Point>::Inner_ring_iterator current_ring = in_geometry.first_polygon().inner_rings_begin(); current_ring != in_geometry.first_polygon().inner_rings_end(); ++current_ring) {
       new_ring = new OGRLinearRing();
-      for (Linear_ring<Point>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+      for (Linear_ring<Point>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
         new_ring->addPoint(CGAL::to_double(current_vertex->x()), CGAL::to_double(current_vertex->y()));
       } new_polygon->addRingDirectly(new_ring);
     } out_geometry = new_polygon;
@@ -95,16 +95,16 @@ OGRGeometry *Polygon_repair::multi_polygon_to_ogr(Multi_polygon<Point> &in_geome
   
   else {
     OGRMultiPolygon *new_multi_polygon = new OGRMultiPolygon();
-    for (Multi_polygon<Point>::polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
+    for (Multi_polygon<Point>::Polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
       OGRPolygon *new_polygon = new OGRPolygon();
       Linear_ring<Point> &outer_ring = current_polygon->outer_ring();
       OGRLinearRing *new_ring = new OGRLinearRing();
-      for (Linear_ring<Point>::vertex_iterator current_vertex = outer_ring.vertices_begin(); current_vertex != outer_ring.vertices_end(); ++current_vertex) {
+      for (Linear_ring<Point>::Vertex_iterator current_vertex = outer_ring.vertices_begin(); current_vertex != outer_ring.vertices_end(); ++current_vertex) {
         new_ring->addPoint(CGAL::to_double(current_vertex->x()), CGAL::to_double(current_vertex->y()));
       } new_polygon->addRingDirectly(new_ring);
-      for (Polygon<Point>::inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
+      for (Polygon<Point>::Inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
         new_ring = new OGRLinearRing();
-        for (Linear_ring<Point>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+        for (Linear_ring<Point>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
           new_ring->addPoint(CGAL::to_double(current_vertex->x()), CGAL::to_double(current_vertex->y()));
         } new_polygon->addRingDirectly(new_ring);
       } new_multi_polygon->addGeometryDirectly(new_polygon);
@@ -114,15 +114,36 @@ OGRGeometry *Polygon_repair::multi_polygon_to_ogr(Multi_polygon<Point> &in_geome
   return out_geometry;
 }
 
-void Polygon_repair::repair_odd_even(Multi_polygon<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
+void Polygon_repair::repair_point_set(Linear_ring<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
+  return repair_odd_even(in_geometry, out_geometry, time_results);
+}
+
+void Polygon_repair::repair_point_set(Polygon<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
   triangulation.clear();
+  std::list<bool> repaired_rings_flipped; // bool indicates if repaired_rings's outer/inner are flipped
+  std::list<Multi_polygon<Point> > repaired_rings;
   time_t this_time, total_time;
   this_time = time(NULL);
-  insert_constraints(triangulation, in_geometry);
-  total_time = time(NULL)-this_time;
+  
+  // Repair rings individually
+  repaired_rings_flipped.push_back(false);
+  repaired_rings.push_back(Multi_polygon<Point>());
+  repair_odd_even(in_geometry.outer_ring(), repaired_rings.back(), false);
+  for (Polygon<Point>::Inner_ring_iterator current_ring = in_geometry.inner_rings_begin(); current_ring != in_geometry.inner_rings_end(); ++current_ring) {
+    repaired_rings_flipped.push_back(true);
+    repaired_rings.push_back(Multi_polygon<Point>());
+    repair_odd_even(*current_ring, repaired_rings.back(), false);
+  } total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Repairing individual rings: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  
+  // Now compute set difference
+  this_time = time(NULL);
+  for (std::list<Multi_polygon<Point> >::iterator current_repaired_ring = repaired_rings.begin(); current_repaired_ring != repaired_rings.end(); ++current_repaired_ring) {
+    insert_constraints(triangulation, *current_repaired_ring);
+  } total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   this_time = time(NULL);
-  tag_odd_even(triangulation);
+  tag_point_set(triangulation, repaired_rings, repaired_rings_flipped);
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   this_time = time(NULL);
@@ -131,71 +152,65 @@ void Polygon_repair::repair_odd_even(Multi_polygon<Point> &in_geometry, Multi_po
   if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
 }
 
-void Polygon_repair::insert_constraints(Triangulation &triangulation, Multi_polygon<Point> &in_geometry, bool remove_overlapping_constraints) {
+void Polygon_repair::repair_point_set(Multi_polygon<Point> &in_geometry, Multi_polygon<Point> &out_geometry, bool time_results) {
+  triangulation.clear();
+  std::vector<Multi_polygon<Point> > repaired_polygons;
+  time_t this_time, total_time;
+  this_time = time(NULL);
+  
+  // Repair polygons individually
+  for (Multi_polygon<Point>::Polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
+    repaired_polygons.push_back(Multi_polygon<Point>());
+    repair_point_set(*current_polygon, repaired_polygons.back(), false);
+  } total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Repairing individual polygons: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+}
+
+void Polygon_repair::insert_constraints(Triangulation &triangulation, Linear_ring<Point> &in_geometry, bool remove_overlapping_constraints) {
   Triangulation::Vertex_handle va, vb;
   Triangulation::Face_handle face_of_edge;
   int index_of_edge;
   
-  for (Multi_polygon<Point>::polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
-    
-    // Outer
-    Linear_ring<Point>::vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin();
-    vb = triangulation.insert(*current_vertex);
-    ++current_vertex;
-    while (current_vertex != current_polygon->outer_ring().vertices_end()) {
-      va = vb;
-      vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
-      if (va == vb) {
-        std::cout << "Duplicate vertex: skipped." << std::endl;
-        ++current_vertex;
-        continue;
-      } if (remove_overlapping_constraints && triangulation.is_edge(va, vb, face_of_edge, index_of_edge)) {
-        if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
-          std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-          triangulation.insert_constraint(va, vb);
-          triangulation.remove_constraint(va, vb);
-        } else {
-          std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-          triangulation.insert_constraint(va, vb);
-        }
-      } else {
-        std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-        triangulation.insert_constraint(va, vb);
-      } ++current_vertex;
-    }
-    
-    // Inner
-    for (Polygon<Point>::inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
-      current_vertex = current_ring->vertices_begin();
-      vb = triangulation.insert(*current_vertex);
+  Linear_ring<Point>::Vertex_iterator current_vertex = in_geometry.vertices_begin();
+  vb = triangulation.insert(*current_vertex);
+  ++current_vertex;
+  while (current_vertex != in_geometry.vertices_end()) {
+    va = vb;
+    vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
+    if (va == vb) {
+//      std::cout << "Duplicate vertex: skipped." << std::endl;
       ++current_vertex;
-      while (current_vertex != current_ring->vertices_end()) {
-        va = vb;
-        vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
-        if (va == vb) {
-          std::cout << "Duplicate vertex: skipped." << std::endl;
-          ++current_vertex;
-          continue;
-        } if (remove_overlapping_constraints && triangulation.is_edge(va, vb, face_of_edge, index_of_edge)) {
-          if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
-            std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-            triangulation.insert_constraint(va, vb);
-            triangulation.remove_constraint(va, vb);
-          } else {
-            std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-            triangulation.insert_constraint(va, vb);
-          }
-        } else {
-          std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
-          triangulation.insert_constraint(va, vb);
-        } ++current_vertex;
+      continue;
+    } if (remove_overlapping_constraints && triangulation.is_edge(va, vb, face_of_edge, index_of_edge)) {
+      if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
+//        std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
+        triangulation.insert_constraint(va, vb);
+        triangulation.remove_constraint(va, vb);
+      } else {
+//        std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
+        triangulation.insert_constraint(va, vb);
       }
-    }
+    } else {
+//      std::cout << "Inserting constraint<" << va->point() << ", " << vb->point() << ">" << std::endl;
+      triangulation.insert_constraint(va, vb);
+    } ++current_vertex;
+  }
+}
+
+void Polygon_repair::insert_constraints(Triangulation &triangulation, Polygon<Point> &in_geometry, bool remove_overlapping_constraints) {
+  insert_constraints(triangulation, in_geometry.outer_ring(), remove_overlapping_constraints);
+  for (Polygon<Point>::Inner_ring_iterator current_ring = in_geometry.inner_rings_begin(); current_ring != in_geometry.inner_rings_end(); ++current_ring) {
+    insert_constraints(triangulation, *current_ring, remove_overlapping_constraints);
+  }
+}
+
+void Polygon_repair::insert_constraints(Triangulation &triangulation, Multi_polygon<Point> &in_geometry, bool remove_overlapping_constraints) {
+  for (Multi_polygon<Point>::Polygon_iterator current_polygon = in_geometry.polygons_begin(); current_polygon != in_geometry.polygons_end(); ++current_polygon) {
+    insert_constraints(triangulation, *current_polygon);
   }
 }
 
 void Polygon_repair::tag_odd_even(Triangulation &triangulation) {
-	
   // Clean tags
   for (Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
     current_face->info().clear();
@@ -238,6 +253,246 @@ void Polygon_repair::tag_odd_even(Triangulation &triangulation) {
 	}
 }
 
+// NOTE: This method relies on the (flawed) constraint counting mechanism. It might not work in extreme cases.
+void Polygon_repair::tag_point_set(Triangulation &triangulation, std::list<Multi_polygon<Point> > &geometries, std::list<bool> &geometries_flipped) {
+  // Clean tags
+  for (Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
+    current_face->info().clear();
+  
+  std::stack<Triangulation::Face_handle> border_triangles, tagging_stack, untagging_stack;
+  Triangulation::Vertices_in_constraint_iterator current_vertex_in_constraint, next_vertex_in_constraint, last_vertex_in_constraint;
+  Triangulation::Vertex_handle va, vb;
+  Triangulation::Face_handle face_of_subedge;
+  int index_of_subedge;
+  bool same_order;
+  
+  // Add all repaired outer rings
+  std::list<Multi_polygon<Point> >::iterator current_repaired_ring = geometries.begin();
+  std::list<bool>::iterator current_repaired_ring_flipped = geometries_flipped.begin();
+  while (current_repaired_ring != geometries.end()) {
+    for (Multi_polygon<Point>::Polygon_iterator current_polygon = current_repaired_ring->polygons_begin(); current_polygon != current_repaired_ring->polygons_end(); ++current_polygon) {
+      tagging_stack = std::stack<Triangulation::Face_handle>();
+      
+      // Outer
+      if (!*current_repaired_ring_flipped) {
+        Linear_ring<Point>::Vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin();
+        vb = triangulation.insert(*current_vertex);
+        ++current_vertex;
+        while (current_vertex != current_polygon->outer_ring().vertices_end()) {
+          va = vb;
+          vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
+          if (va == vb) {
+//            std::cout << "Duplicate vertex: skipped." << std::endl;
+            ++current_vertex;
+            continue;
+          } current_vertex_in_constraint = triangulation.vertices_in_constraint_begin(va, vb);
+          next_vertex_in_constraint = current_vertex_in_constraint;
+          ++next_vertex_in_constraint;
+          last_vertex_in_constraint = triangulation.vertices_in_constraint_end(va, vb);
+          if (*current_vertex_in_constraint == va) same_order = true;
+          else same_order = false;
+          while (next_vertex_in_constraint != last_vertex_in_constraint) {
+            if (!same_order) {
+              if (!triangulation.is_edge(*current_vertex_in_constraint, *next_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                return;
+              }
+            } else {
+              if (!triangulation.is_edge(*next_vertex_in_constraint, *current_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                return;
+              }
+            } if (triangulation.number_of_enclosing_constraints(*current_vertex_in_constraint, *next_vertex_in_constraint) % 2 != 0)
+              tagging_stack.push(face_of_subedge);
+            current_vertex_in_constraint = next_vertex_in_constraint;
+            ++next_vertex_in_constraint;
+          } ++current_vertex;
+        }
+      }
+      
+      // Inner
+      else {
+        for (Polygon<Point>::Inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
+          Linear_ring<Point>::Vertex_iterator current_vertex = current_ring->vertices_begin();
+          vb = triangulation.insert(*current_vertex);
+          ++current_vertex;
+          while (current_vertex != current_ring->vertices_end()) {
+            va = vb;
+            vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
+            if (va == vb) {
+//            std::cout << "Duplicate vertex: skipped." << std::endl;
+              ++current_vertex;
+              continue;
+            } current_vertex_in_constraint = triangulation.vertices_in_constraint_begin(va, vb);
+            next_vertex_in_constraint = current_vertex_in_constraint;
+            ++next_vertex_in_constraint;
+            last_vertex_in_constraint = triangulation.vertices_in_constraint_end(va, vb);
+            if (*current_vertex_in_constraint == va) same_order = true;
+            else same_order = false;
+            while (next_vertex_in_constraint != last_vertex_in_constraint) {
+              if (!same_order) {
+                if (!triangulation.is_edge(*current_vertex_in_constraint, *next_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                  std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                  return;
+                }
+              } else {
+                if (!triangulation.is_edge(*next_vertex_in_constraint, *current_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                  std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                  return;
+                }
+              } if (triangulation.number_of_enclosing_constraints(*current_vertex_in_constraint, *next_vertex_in_constraint) % 2 != 0)
+                tagging_stack.push(face_of_subedge);
+              current_vertex_in_constraint = next_vertex_in_constraint;
+              ++next_vertex_in_constraint;
+            } ++current_vertex;
+          }
+        }
+      }
+      
+      // Expand the tags
+      untagging_stack = std::stack<Triangulation::Face_handle>();
+      while (!tagging_stack.empty()) {
+        Triangulation::Face_handle current_face = tagging_stack.top();
+        tagging_stack.pop();
+        if (current_face->info().been_tagged()) continue;
+        current_face->info().is_in_interior(true);
+        untagging_stack.push(current_face);
+        for (int current_edge = 0; current_edge < 3; ++current_edge) {
+          if (!current_face->neighbor(current_edge)->info().been_tagged() &&
+              !current_face->is_constrained(current_edge)) {
+            tagging_stack.push(current_face->neighbor(current_edge));
+          }
+        }
+      }
+      
+      // Remove tagged tags
+      while (!untagging_stack.empty()) {
+        untagging_stack.top()->info().been_tagged(false);
+        untagging_stack.pop();
+      }
+    }
+    
+    ++current_repaired_ring;
+    ++current_repaired_ring_flipped;
+  }
+  
+  // Subtract all repaired inner rings
+  current_repaired_ring = geometries.begin();
+  current_repaired_ring_flipped = geometries_flipped.begin();
+  while (current_repaired_ring != geometries.end()) {
+    for (Multi_polygon<Point>::Polygon_iterator current_polygon = current_repaired_ring->polygons_begin(); current_polygon != current_repaired_ring->polygons_end(); ++current_polygon) {
+      tagging_stack = std::stack<Triangulation::Face_handle>();
+      
+      // Outer
+      if (*current_repaired_ring_flipped) {
+        Linear_ring<Point>::Vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin();
+        vb = triangulation.insert(*current_vertex);
+        ++current_vertex;
+        while (current_vertex != current_polygon->outer_ring().vertices_end()) {
+          va = vb;
+          vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
+          if (va == vb) {
+//            std::cout << "Duplicate vertex: skipped." << std::endl;
+            ++current_vertex;
+            continue;
+          } current_vertex_in_constraint = triangulation.vertices_in_constraint_begin(va, vb);
+          next_vertex_in_constraint = current_vertex_in_constraint;
+          ++next_vertex_in_constraint;
+          last_vertex_in_constraint = triangulation.vertices_in_constraint_end(va, vb);
+          if (*current_vertex_in_constraint == va) same_order = true;
+          else same_order = false;
+          while (next_vertex_in_constraint != last_vertex_in_constraint) {
+            if (!same_order) {
+              if (!triangulation.is_edge(*current_vertex_in_constraint, *next_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                return;
+              }
+            } else {
+              if (!triangulation.is_edge(*next_vertex_in_constraint, *current_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                return;
+              }
+            } if (triangulation.number_of_enclosing_constraints(*current_vertex_in_constraint, *next_vertex_in_constraint) % 2 != 0)
+              tagging_stack.push(face_of_subedge);
+            current_vertex_in_constraint = next_vertex_in_constraint;
+            ++next_vertex_in_constraint;
+          } ++current_vertex;
+        }
+      }
+      
+      // Inner
+      else {
+        for (Polygon<Point>::Inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
+          Linear_ring<Point>::Vertex_iterator current_vertex = current_ring->vertices_begin();
+          vb = triangulation.insert(*current_vertex);
+          ++current_vertex;
+          while (current_vertex != current_ring->vertices_end()) {
+            va = vb;
+            vb = triangulation.insert(*current_vertex, triangulation.incident_faces(va));
+            if (va == vb) {
+//            std::cout << "Duplicate vertex: skipped." << std::endl;
+              ++current_vertex;
+              continue;
+            } current_vertex_in_constraint = triangulation.vertices_in_constraint_begin(va, vb);
+            next_vertex_in_constraint = current_vertex_in_constraint;
+            ++next_vertex_in_constraint;
+            last_vertex_in_constraint = triangulation.vertices_in_constraint_end(va, vb);
+            if (*current_vertex_in_constraint == va) same_order = true;
+            else same_order = false;
+            while (next_vertex_in_constraint != last_vertex_in_constraint) {
+              if (!same_order) {
+                if (!triangulation.is_edge(*current_vertex_in_constraint, *next_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                  std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                  return;
+                }
+              } else {
+                if (!triangulation.is_edge(*next_vertex_in_constraint, *current_vertex_in_constraint, face_of_subedge, index_of_subedge)) {
+                  std::cerr << "Polygon_repair::tag_point_set: Cannot find edge! If no edges for a ring are found, the result might be incorrect." << std::endl;
+                  return;
+                }
+              } if (triangulation.number_of_enclosing_constraints(*current_vertex_in_constraint, *next_vertex_in_constraint) % 2 != 0)
+                tagging_stack.push(face_of_subedge);
+              current_vertex_in_constraint = next_vertex_in_constraint;
+              ++next_vertex_in_constraint;
+            } ++current_vertex;
+          }
+        }
+      }
+      
+      // Expand the tags
+      untagging_stack = std::stack<Triangulation::Face_handle>();
+      while (!tagging_stack.empty()) {
+        Triangulation::Face_handle current_face = tagging_stack.top();
+        tagging_stack.pop();
+        if (current_face->info().been_tagged()) continue;
+        current_face->info().is_in_interior(false);
+        untagging_stack.push(current_face);
+        for (int current_edge = 0; current_edge < 3; ++current_edge) {
+          if (!current_face->neighbor(current_edge)->info().is_on_border() &&
+              !current_face->neighbor(current_edge)->info().been_tagged()) {
+            tagging_stack.push(current_face->neighbor(current_edge));
+          }
+        }
+      }
+      
+      // Remove border tags
+      while (!border_triangles.empty()) {
+        border_triangles.top()->info().is_on_border(false);
+        border_triangles.pop();
+      }
+      
+      // Remove tagged tags
+      while (!untagging_stack.empty()) {
+        untagging_stack.top()->info().been_tagged(false);
+        untagging_stack.pop();
+      }
+    }
+    
+    ++current_repaired_ring;
+    ++current_repaired_ring_flipped;
+  }
+}
+
 void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Point> &out_geometry) {
   if (triangulation.number_of_faces() < 1) {
     return;
@@ -249,7 +504,7 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
     if (!seeding_face->info().is_in_interior() || seeding_face->info().been_reconstructed()) continue;
     seeding_face->info().been_reconstructed(true);
     if (!seeding_face->info().been_reconstructed()) {
-      std::cout << "ERROR! Should be marked as reconstructed!!!" << std::endl;
+      std::cout << "Error: Face should be marked as reconstructed!" << std::endl;
     }
     
     // Get boundary
@@ -286,7 +541,7 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
     std::set<Triangulation::Vertex_handle> vertices_where_chains_begin;
     rings.push_back(Linear_ring<Triangulation::Vertex_handle>());
     std::list<Linear_ring<Triangulation::Vertex_handle> >::reverse_iterator new_chain = rings.rbegin();
-    for (Linear_ring<Triangulation::Vertex_handle>::vertex_iterator current_vertex = vertices.vertices_begin(); current_vertex != vertices.vertices_end(); ++current_vertex) {
+    for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = vertices.vertices_begin(); current_vertex != vertices.vertices_end(); ++current_vertex) {
       
       // New chain
       if (repeated_vertices.count(*current_vertex) > 0) {
@@ -298,7 +553,7 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
             new_chain->clear();
           }
           else {
-            Linear_ring<Triangulation::Vertex_handle>::vertex_iterator second_element = new_chain->vertices_begin();
+            Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator second_element = new_chain->vertices_begin();
             ++second_element;
             // Degenerate (zero area)
             if (new_chain->last_vertex() == *second_element) {
@@ -381,14 +636,14 @@ void Polygon_repair::reconstruct(Triangulation &triangulation, Multi_polygon<Poi
     Polygon<Point> &new_polygon = out_geometry.add_empty_polygon();
     for (std::list<Linear_ring<Triangulation::Vertex_handle> >::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
       if (!current_ring->is_clockwise()) {
-        for (Linear_ring<Triangulation::Vertex_handle>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+        for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
           new_polygon.outer_ring().add_vertex((*current_vertex)->point());
         } break;
       }
     } for (std::list<Linear_ring<Triangulation::Vertex_handle> >::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
       if (current_ring->is_clockwise()) {
         Linear_ring<Point> &new_ring = new_polygon.add_empty_inner_ring();
-        for (Linear_ring<Triangulation::Vertex_handle>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+        for (Linear_ring<Triangulation::Vertex_handle>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
           new_ring.add_vertex((*current_vertex)->point());
         }
       }

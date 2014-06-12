@@ -91,8 +91,8 @@ private:
   std::list<Vertex_> v;
 public:
   typedef Vertex_ Vertex;
-  typedef typename std::list<Vertex>::iterator vertex_iterator;
-  typedef typename std::list<Vertex>::reverse_iterator vertex_reverse_iterator;
+  typedef typename std::list<Vertex>::iterator Vertex_iterator;
+  typedef typename std::list<Vertex>::reverse_iterator Vertex_reverse_iterator;
   
   void clear() {
     v.clear();
@@ -114,37 +114,37 @@ public:
     v.push_back(vertex);
   }
   
-  vertex_iterator vertices_begin() {
+  Vertex_iterator vertices_begin() {
     return v.begin();
   }
   
-  vertex_iterator vertices_end() {
+  Vertex_iterator vertices_end() {
     return v.end();
   }
   
-  vertex_reverse_iterator vertices_rbegin() {
+  Vertex_reverse_iterator vertices_rbegin() {
     return v.rbegin();
   }
   
-  vertex_reverse_iterator vertices_rend() {
+  Vertex_reverse_iterator vertices_rend() {
     return v.rend();
   }
   
-  void splice_vertices(vertex_iterator position, Linear_ring &other) {
+  void splice_vertices(Vertex_iterator position, Linear_ring &other) {
     v.splice(position, other.v);
   }
   
   bool is_clockwise() {
-    vertex_iterator current = vertices_begin();
-    vertex_iterator rightmost = current;
+    Vertex_iterator current = vertices_begin();
+    Vertex_iterator rightmost = current;
     while (current != vertices_end()) {
       if (Vertex_converter<Vertex>::to_point(*current).x() > Vertex_converter<Vertex>::to_point(*rightmost).x()) {
         rightmost = current;
       } ++current;
-    } vertex_iterator next = rightmost;
+    } Vertex_iterator next = rightmost;
     ++next;
     if (next == vertices_end()) next = vertices_begin();
-    vertex_iterator previous = rightmost;
+    Vertex_iterator previous = rightmost;
     if (previous == vertices_begin()) previous = vertices_end();
     --previous;
     
@@ -162,8 +162,8 @@ private:
   std::list<Linear_ring<Vertex_> > irings;
 public:
   typedef Vertex_ Vertex;
-  typedef typename std::list<Linear_ring<Vertex> >::iterator inner_ring_iterator;
-  typedef typename std::list<Linear_ring<Vertex> >::reverse_iterator inner_ring_reverse_iterator;
+  typedef typename std::list<Linear_ring<Vertex> >::iterator Inner_ring_iterator;
+  typedef typename std::list<Linear_ring<Vertex> >::reverse_iterator Inner_ring_reverse_iterator;
   
   void clear() {
     oring.clear();
@@ -191,19 +191,19 @@ public:
     return irings.back();
   }
   
-  inner_ring_iterator inner_rings_begin() {
+  Inner_ring_iterator inner_rings_begin() {
     return irings.begin();
   }
   
-  inner_ring_iterator inner_rings_end() {
+  Inner_ring_iterator inner_rings_end() {
     return irings.end();
   }
   
-  inner_ring_reverse_iterator inner_rings_rbegin() {
+  Inner_ring_reverse_iterator inner_rings_rbegin() {
     return irings.rbegin();
   }
   
-  inner_ring_reverse_iterator inner_rings_rend() {
+  Inner_ring_reverse_iterator inner_rings_rend() {
     return irings.rend();
   }
 };
@@ -214,8 +214,8 @@ private:
   std::list<Polygon<Vertex_> > p;
 public:
   typedef Vertex_ Vertex;
-  typedef typename std::list<Polygon<Vertex> >::iterator polygon_iterator;
-  typedef typename std::list<Polygon<Vertex> >::reverse_iterator polygon_reverse_iterator;
+  typedef typename std::list<Polygon<Vertex> >::iterator Polygon_iterator;
+  typedef typename std::list<Polygon<Vertex> >::reverse_iterator Polygon_reverse_iterator;
   
   void clear() {
     p.clear();
@@ -238,34 +238,34 @@ public:
     return p.back();
   }
   
-  polygon_iterator polygons_begin() {
+  Polygon_iterator polygons_begin() {
     return p.begin();
   }
   
-  polygon_iterator polygons_end() {
+  Polygon_iterator polygons_end() {
     return p.end();
   }
   
-  polygon_reverse_iterator polygons_rbegin() {
+  Polygon_reverse_iterator polygons_rbegin() {
     return p.rbegin();
   }
   
-  polygon_reverse_iterator polygons_rend() {
+  Polygon_reverse_iterator polygons_rend() {
     return p.rend();
   }
   
   std::string as_wkt() {
     std::string wkt = "MULTIPOLYGON(";
-    for (polygon_iterator current_polygon = polygons_begin(); current_polygon != polygons_end(); ++current_polygon) {
+    for (Polygon_iterator current_polygon = polygons_begin(); current_polygon != polygons_end(); ++current_polygon) {
       wkt.append("((");
-      for (typename Linear_ring<Vertex>::vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin(); current_vertex != current_polygon->outer_ring().vertices_end(); ++current_vertex) {
+      for (typename Linear_ring<Vertex>::Vertex_iterator current_vertex = current_polygon->outer_ring().vertices_begin(); current_vertex != current_polygon->outer_ring().vertices_end(); ++current_vertex) {
         if (current_vertex != current_polygon->outer_ring().vertices_begin()) wkt.append(", ");
         wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
         wkt.append(" ");
         wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).y())));
-      } for (typename Polygon<Vertex>::inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
+      } for (typename Polygon<Vertex>::Inner_ring_iterator current_ring = current_polygon->inner_rings_begin(); current_ring != current_polygon->inner_rings_end(); ++current_ring) {
         if (current_ring != current_polygon->inner_rings_begin()) wkt.append(", ");
-        for (typename Linear_ring<Vertex>::vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
+        for (typename Linear_ring<Vertex>::Vertex_iterator current_vertex = current_ring->vertices_begin(); current_vertex != current_ring->vertices_end(); ++current_vertex) {
           if (current_vertex != current_ring->vertices_begin()) wkt.append(", ");
           wkt.append(std::to_string(CGAL::to_double(Vertex_converter<Vertex>::to_point(*current_vertex).x())));
           wkt.append(" ");
