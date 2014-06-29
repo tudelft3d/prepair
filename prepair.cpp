@@ -144,7 +144,7 @@ int main (int argc, const char * argv[]) {
   geometry->exportToWkt(&input_wkt);
 //  std::cout << "Input: " << input_wkt << std::endl;
   
-  Multi_polygon<Point> in_polygons, out_polygons;
+  Multi_polygon<Point_2> in_polygons, out_polygons;
   Polygon_repair::ogr_to_multi_polygon(geometry, in_polygons);
 //  std::cout << "Input (converted): " << in_polygons.as_wkt() << std::endl;
   

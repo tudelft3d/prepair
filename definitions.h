@@ -84,9 +84,9 @@ typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, IT> CDT;
 typedef CGAL::Triangulation_hierarchy_2<CDT> CDTH;
 typedef CGAL::Constrained_triangulation_plus_2<CDTH> Triangulation;
 
-typedef K::Point_2 Point;
-typedef K::Segment_2 Segment;
-typedef K::Vector_2 Vector;
+typedef K::Point_2 Point_2;
+typedef K::Segment_2 Segment_2;
+typedef K::Vector_2 Vector_2;
 
 // Custom containers
 
@@ -317,15 +317,15 @@ public:
 template <>
 class Vertex_converter<Triangulation::Vertex_handle> {
 public:
-  static Point to_point(Triangulation::Vertex_handle vertex) {
+  static Point_2 to_point(Triangulation::Vertex_handle vertex) {
     return vertex->point();
   }
 };
 
 template <>
-class Vertex_converter<Point> {
+class Vertex_converter<Point_2> {
 public:
-  static Point to_point(Point vertex) {
+  static Point_2 to_point(Point_2 vertex) {
     return vertex;
   }
 };
