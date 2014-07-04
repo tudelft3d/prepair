@@ -22,6 +22,8 @@
 #ifndef TRIANGLEINFO_H
 #define TRIANGLEINFO_H
 
+#include <bitset>
+
 // TODO: Maybe create a marker manager in the future
 class TriangleInfo {
 public:
@@ -38,8 +40,7 @@ public:
   void beenReconstructed(bool reconstructed);
   
 private:
-  unsigned char info; // Bitset: unused                          unused        unused            unused
-                      //         not reconstructed/reconstructed normal/border exterior/interior untagged/tagged
+  std::bitset<4> info;
 };
 
 #endif
