@@ -151,19 +151,12 @@ int main (int argc, const char * argv[]) {
   if (computeRobustness == true)
     std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
   
-  OGRGeometry *snappedGeometry;
-  if (isrTolerance != 0) {
-    snappedGeometry = prepair.isr(geometry, isrTolerance);
-  } else {
-    snappedGeometry = geometry;
-  }
-  
   
   OGRMultiPolygon *outPolygons;
   if (pointSet) {
-    outPolygons = prepair.repairPointSet(snappedGeometry, startTime);
+    outPolygons = prepair.repairPointSet(geometry, startTime);
   } else {
-    outPolygons = prepair.repairOddEven(snappedGeometry, startTime);
+    outPolygons = prepair.repairOddEven(geometry, startTime);
   }
   
   if (minArea > 0) {

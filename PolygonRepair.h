@@ -28,7 +28,6 @@ public:
   OGRMultiPolygon *repairOddEven(OGRGeometry *geometry, bool timeResults = false);
   OGRMultiPolygon *repairPointSet(OGRGeometry *geometry, bool timeResults = false);
   void removeSmallPolygons(OGRMultiPolygon *outPolygons, double minArea);
-  OGRMultiPolygon *isr(OGRGeometry *geometry, double tolerance);
   double computeRobustness(OGRGeometry *geometry = NULL);
   bool saveToShp(OGRGeometry* geometry, const char *fileName);
   
