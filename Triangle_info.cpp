@@ -19,28 +19,45 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef TRIANGLEINFO_H
-#define TRIANGLEINFO_H
+#include "Triangle_info.h"
 
-#include <bitset>
+Triangle_info::Triangle_info() {
 
-// TODO: Maybe create a marker manager in the future
-class TriangleInfo {
-public:
-  TriangleInfo();
-  
-  void clear();
-  bool beenTagged();
-  void beenTagged(bool tagged);
-  bool isInInterior();
-  void isInInterior(bool inInterior);
-  bool isOnBorder();
-  void isOnBorder(bool onBorder);
-  bool beenReconstructed();
-  void beenReconstructed(bool reconstructed);
-  
-private:
-  std::bitset<4> info;
-};
+}
 
-#endif
+void Triangle_info::clear() {
+  info.reset();
+}
+
+bool Triangle_info::been_tagged() {
+  return info[0];
+}
+
+void Triangle_info::been_tagged(bool tagged) {
+  info[0] = tagged;
+}
+
+bool Triangle_info::is_in_interior() {
+  return info[1];
+}
+
+void Triangle_info::is_in_interior(bool in_interior) {
+  info[0] = true;
+  info[1] = in_interior;
+}
+
+bool Triangle_info::is_on_border() {
+  return info[2];
+}
+
+void Triangle_info::is_on_border(bool on_border) {
+  info[2] = on_border;
+}
+
+bool Triangle_info::been_reconstructed() {
+  return info[3];
+}
+
+void Triangle_info::been_reconstructed(bool reconstructed) {
+  info[3] = reconstructed;
+}
