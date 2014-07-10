@@ -453,6 +453,17 @@ OGRGeometry *Polygon_repair::reconstruct(Triangulation &triangulation) {
       rings.pop_back();
     }
     
+    // Start rings at the lexicographically smallest vertex
+    for (std::list<std::list<Triangulation::Vertex_handle> >::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
+      std::list<Triangulation::Vertex_handle>::iterator smallest_vertex = current_ring->begin();
+      for (std::list<Triangulation::Vertex_handle>::iterator current_vertex = current_ring->begin(); current_vertex != current_ring->end(); ++current_vertex) {
+        if ((*current_vertex)->point() < (*smallest_vertex)->point()) smallest_vertex = current_vertex;
+      } if (current_ring->back() != *smallest_vertex) {
+        ++smallest_vertex;
+        current_ring->splice(current_ring->begin(), *current_ring, smallest_vertex, current_ring->end());
+      }
+    }
+    
     // Make rings
     if (rings.size() == 0) continue;
     std::list<OGRLinearRing *> rings_for_polygon;
