@@ -81,6 +81,8 @@ int main(int argc, const char *argv[]) {
     if (!infile.is_open()) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
+    } else {
+//      std::cout << "Opened: " << vm["wktfile"].as<std::string>() << std::endl;
     }
   }
   
@@ -109,6 +111,7 @@ int main(int argc, const char *argv[]) {
       } std::string line;
       std::getline(infile, line);
       char *cstr = new char[line.length()+1];
+      std::strcpy(cstr, line.c_str());
       OGRGeometryFactory::createFromWkt(&cstr, NULL, &in_geometry);
     }
     
@@ -119,6 +122,8 @@ int main(int argc, const char *argv[]) {
         return 0;
       } in_geometry = feature->GetGeometryRef();
     }
+    
+    if (in_geometry == NULL) break;
     
     // Do what needs to be done
     Polygon_repair prepair;
