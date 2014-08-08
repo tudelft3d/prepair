@@ -47,12 +47,14 @@ endif()
 include( ${CGAL_USE_FILE} )
 
 # Boost
-find_package( Boost REQUIRED )
+find_package( Boost REQUIRED COMPONENTS program_options)
 
 if ( NOT Boost_FOUND )
   message(SEND_ERROR "prepair requires the Boost library")
   return()  
 endif()
+
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 # GDAL
 find_package( GDAL )
@@ -75,4 +77,4 @@ endif()
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
 
 # Link to CGAL and third-party libraries
-target_link_libraries(prepair   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} ${GDAL_LIBRARY})
+target_link_libraries(prepair   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} ${GDAL_LIBRARY} ${Boost_LIBRARIES})
