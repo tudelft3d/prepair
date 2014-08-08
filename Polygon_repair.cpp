@@ -22,6 +22,7 @@
 #include "Polygon_repair.h"
 
 bool Polygon_repair::is_iso_and_ogc_valid(OGRGeometry *in_geometry, const std::string &pre_text, bool time_results) {
+  // TODO: Implement
   triangulation.clear();
   std::time_t this_time, total_time;
   bool is_valid = true;
@@ -316,11 +317,11 @@ void Polygon_repair::tag_odd_even(Triangulation &triangulation) {
 }
 
 void Polygon_repair::tag_point_set_difference(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries) {
-  
+  // TODO: Implement
 }
 
 void Polygon_repair::tag_point_set_union(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries) {
-  
+  // TODO: Implement
 }
 
 OGRGeometry *Polygon_repair::reconstruct(Triangulation &triangulation) {

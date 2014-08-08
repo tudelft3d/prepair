@@ -41,10 +41,10 @@ int main(int argc, const char *argv[]) {
   ("isr", po::value<double>()->value_name("GRIDSIZE"), "Snap round the input before repairing")
   ("robustness", "Compute the robustness of the input and output")
   ;
+  po::options_description hidden_options("Hidden options");
   
   po::options_description all_options;
-  all_options.add(main_options);
-  all_options.add(advanced_options);
+  all_options.add(main_options).add(advanced_options).add(hidden_options);
   
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, all_options), vm);
@@ -61,7 +61,7 @@ int main(int argc, const char *argv[]) {
 ////  double min_area = 0;
 ////  bool shp_out = false;
 //  bool point_set = false;
-//  bool time_results = false;
+  bool time_results = false;
   
   OGRGeometry *in_geometry;
   OGRDataSource *data_source;
@@ -82,7 +82,7 @@ int main(int argc, const char *argv[]) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
     } else {
-//      std::cout << "Opened: " << vm["wktfile"].as<std::string>() << std::endl;
+      std::cout << "Opened: " << vm["wktfile"].as<std::string>() << std::endl;
     }
   }
   
@@ -101,13 +101,17 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
   
+  if (vm.count("time")) {
+    time_results = true;
+  }
+  
   while (true) {
 
     // Get one polygon
     if (vm.count("wktfile")) {
       if (infile.eof()) {
         infile.close();
-        return 0;
+        break;
       } std::string line;
       std::getline(infile, line);
       char *cstr = new char[line.length()+1];
@@ -119,7 +123,7 @@ int main(int argc, const char *argv[]) {
       feature = data_layer->GetNextFeature();
       if (feature == NULL) {
         OGRDataSource::DestroyDataSource(data_source);
-        return 0;
+        break;
       } in_geometry = feature->GetGeometryRef();
     }
     
@@ -140,14 +144,14 @@ int main(int argc, const char *argv[]) {
     }
     
     // Output results
-    char *output_wkt;
-    out_geometry->exportToWkt(&output_wkt);
-    std::cout << output_wkt << std::endl;
-    delete output_wkt;
+//    char *output_wkt;
+//    out_geometry->exportToWkt(&output_wkt);
+//    std::cout << output_wkt << std::endl;
+//    delete output_wkt;
     
     if (vm.count("wkt")) {
       delete in_geometry;
-      return 0;
+      break;
     }
     
     else if (vm.count("wktfile")) {
@@ -160,7 +164,7 @@ int main(int argc, const char *argv[]) {
   }
   
   // Time results
-  if (vm.count("time")) {
+  if (time_results) {
     std::time_t total_time = time(NULL)-start_time;
     std::cout << "Done! Process finished in " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   }
