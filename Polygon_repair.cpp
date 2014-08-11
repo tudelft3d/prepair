@@ -330,6 +330,35 @@ void Polygon_repair::tag_odd_even() {
 
 void Polygon_repair::tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
   // TODO: Implement
+  
+  // Clean tags
+  for (prepair::Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
+    current_face->info().clear();
+  
+  // Add all repaired outer rings
+  for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_geometry = geometries.begin();
+       current_geometry != geometries.end(); ++current_geometry) {
+    switch (current_geometry->second->getGeometryType()) {
+      case wkbLineString: {
+        OGRLinearRing *ring = static_cast<OGRLinearRing *>(current_geometry->second);
+        break;
+      }
+        
+      case wkbPolygon: {
+        OGRPolygon *polygon = static_cast<OGRPolygon *>(current_geometry->second);
+        break;
+      }
+        
+      case wkbMultiPolygon: {
+        OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(current_geometry->second);
+        break;
+      }
+        
+      default:
+        std::cerr << "Error: Input type not supported" << std::endl;
+        break;
+    }
+  }
 }
 
 void Polygon_repair::tag_point_set_union(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
