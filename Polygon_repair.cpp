@@ -330,6 +330,12 @@ void Polygon_repair::tag_odd_even() {
 
 void Polygon_repair::tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
   // TODO: Implement
+  Triangulation::Vertex_handle va, vb;
+  Triangulation::Vertices_in_constraint_iterator current_vertex, next_vertex, last_vertex;
+  bool same_order;
+  Triangulation::Face_handle face_of_subedge;
+  int index_of_subedge;
+  std::stack<prepair::Triangulation::Face_handle> tagging_stack;
   
   // Clean tags
   for (prepair::Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
@@ -341,6 +347,38 @@ void Polygon_repair::tag_point_set_difference(std::list<std::pair<bool, OGRGeome
     switch (current_geometry->second->getGeometryType()) {
       case wkbLineString: {
         OGRLinearRing *ring = static_cast<OGRLinearRing *>(current_geometry->second);
+        
+        vb = triangulation.insert(Point(ring->getX(0), ring->getY(0)), walk_start_location);
+        walk_start_location = triangulation.incident_faces(vb);
+        for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
+          va = vb;
+          vb = triangulation.insert(Point(ring->getX(current_point),
+                                          ring->getY(current_point)),
+                                    walk_start_location);
+          if (va == vb) continue;
+          current_vertex = triangulation.vertices_in_constraint_begin(va, vb);
+          next_vertex = current_vertex;
+          ++next_vertex;
+          last_vertex = triangulation.vertices_in_constraint_end(va, vb);
+          if (*current_vertex == va) same_order = true;
+          else same_order = false;
+          while (next_vertex != last_vertex) {
+            if (!same_order) {
+              if (!triangulation.is_edge(*current_vertex, *next_vertex, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set_difference: Cannot find edge! Method will likely give a wrong result." << std::endl;
+                return;
+              }
+            } else {
+              if (!triangulation.is_edge(*next_vertex, *current_vertex, face_of_subedge, index_of_subedge)) {
+                std::cerr << "Polygon_repair::tag_point_set_difference: Cannot find edge! Method will likely give a wrong result." << std::endl;
+                return;
+              }
+            } if (triangulation.number_of_enclosing_constraints(*current_vertex, *next_vertex) % 2 != 0) tagging_stack.push(face_of_subedge);
+            current_vertex = next_vertex;
+            ++next_vertex;
+          }
+        }
+        
         break;
       }
         
