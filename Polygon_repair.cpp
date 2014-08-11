@@ -114,14 +114,19 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
   insert_constraints(in_geometry);
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+
+  this_time = time(NULL);
+  attempt_to_fix_overlapping_constraints();
+  total_time = time(NULL)-this_time;
+  if (time_results) std::cout << "Fixing overlapping constraints: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
   this_time = time(NULL);
-  tag_odd_even(triangulation);
+  tag_odd_even();
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
   this_time = time(NULL);
-  OGRGeometry *out_geometry = reconstruct(triangulation);
+  OGRGeometry *out_geometry = reconstruct();
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
@@ -155,7 +160,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
-      tag_point_set_difference(triangulation, repaired_parts);
+      tag_point_set_difference(repaired_parts);
       total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -180,7 +185,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
-      tag_point_set_union(triangulation, repaired_parts);
+      tag_point_set_union(repaired_parts);
       total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -194,7 +199,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
   }
   
   this_time = time(NULL);
-  OGRGeometry *out_geometry = reconstruct(triangulation);
+  OGRGeometry *out_geometry = reconstruct();
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
@@ -232,12 +237,12 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
         if (va == vb) continue;
         if (triangulation.is_edge(va, vb, face_of_edge, index_of_edge)) {
           if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
-            triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint
+            triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint (part 1)
             triangulation.remove_constraint(va, vb);
           } else triangulation.insert_constraint(va, vb);
         } else triangulation.insert_constraint(va, vb);
-      } walk_start_location = triangulation.incident_faces(vb);
-      break;
+        walk_start_location = triangulation.incident_faces(vb);
+      } break;
     }
       
     case wkbPolygon: {
@@ -260,8 +265,13 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
       return;
       break;
   }
+}
+
+void Polygon_repair::attempt_to_fix_overlapping_constraints() {
+  Triangulation::Face_handle face_of_edge;
+  int index_of_edge;
   
-  // Trick to remove partially even-overlapping constraints
+  // Trick to remove partially even-overlapping constraints (part 2)
   for (Triangulation::Subconstraint_iterator current_edge = triangulation.subconstraints_begin();
        current_edge != triangulation.subconstraints_end();
        ++current_edge) {
@@ -275,7 +285,7 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
   }
 }
 
-void Polygon_repair::tag_odd_even(Triangulation &triangulation) {
+void Polygon_repair::tag_odd_even() {
   // Clean tags
   for (prepair::Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
     current_face->info().clear();
@@ -318,15 +328,15 @@ void Polygon_repair::tag_odd_even(Triangulation &triangulation) {
 	}
 }
 
-void Polygon_repair::tag_point_set_difference(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries) {
+void Polygon_repair::tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
   // TODO: Implement
 }
 
-void Polygon_repair::tag_point_set_union(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries) {
+void Polygon_repair::tag_point_set_union(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
   // TODO: Implement
 }
 
-OGRGeometry *Polygon_repair::reconstruct(Triangulation &triangulation) {
+OGRGeometry *Polygon_repair::reconstruct() {
   // std::cout << "Triangulation: " << triangulation.number_of_faces() << " faces, " << triangulation.number_of_vertices() << " vertices." << std::endl;
   if (triangulation.number_of_faces() < 1) {
     return new OGRPolygon();

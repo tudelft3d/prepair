@@ -40,10 +40,11 @@ private:
   Triangulation::Face_handle walk_start_location;
   
   void insert_constraints(OGRGeometry *in_geometry);
-  void tag_odd_even(Triangulation &triangulation);
-  void tag_point_set_difference(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries);
-  void tag_point_set_union(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries);
-  OGRGeometry *reconstruct(Triangulation &triangulation);
+  void attempt_to_fix_overlapping_constraints();
+  void tag_odd_even();
+  void tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries);
+  void tag_point_set_union(std::list<std::pair<bool, OGRGeometry *> > &geometries);
+  OGRGeometry *reconstruct();
   void get_boundary(Triangulation::Face_handle face, int edge, std::list<Triangulation::Vertex_handle> &out_vertices);
 };
 
