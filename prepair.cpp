@@ -138,9 +138,9 @@ int main(int argc, const char *argv[]) {
     
     OGRGeometry *out_geometry;
     if (vm.count("setdiff")) {
-      out_geometry = prepair.repair_point_set(in_geometry);
+      out_geometry = prepair.repair_point_set(in_geometry, time_results);
     } else {
-      out_geometry = prepair.repair_odd_even(in_geometry);
+      out_geometry = prepair.repair_odd_even(in_geometry, time_results);
     }
     
     // Output results

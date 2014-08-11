@@ -37,6 +37,7 @@ public:
 
 private:
   Triangulation triangulation;
+  Triangulation::Face_handle walk_start_location;
   
   void insert_constraints(Triangulation &triangulation, OGRGeometry *in_geometry);
   void tag_odd_even(Triangulation &triangulation);

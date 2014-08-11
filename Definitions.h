@@ -48,7 +48,6 @@
 #endif
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_hierarchy_2.h>
 #include <CGAL/Constrained_triangulation_plus_2.h>
 
 namespace prepair {
@@ -68,14 +67,12 @@ namespace prepair {
   typedef TK K;
 #endif
   
-  typedef CGAL::Triangulation_vertex_base_2<K> TVB;
-  typedef CGAL::Triangulation_hierarchy_vertex_base_2<TVB> VB;
+  typedef CGAL::Triangulation_vertex_base_2<K> VB;
   typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
   typedef CGAL::Triangulation_face_base_with_info_2<Triangle_info, K, FB> FBWI;
   typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
   typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, IT> CDT;
-  typedef CGAL::Triangulation_hierarchy_2<CDT> CDTH;
-  typedef CGAL::Constrained_triangulation_plus_2<CDTH> Triangulation;
+  typedef CGAL::Constrained_triangulation_plus_2<CDT> Triangulation;
   
   typedef K::Point_2 Point;
   typedef K::Vector_2 Vector;
