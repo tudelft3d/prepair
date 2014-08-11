@@ -39,7 +39,7 @@ private:
   Triangulation triangulation;
   Triangulation::Face_handle walk_start_location;
   
-  void insert_constraints(Triangulation &triangulation, OGRGeometry *in_geometry);
+  void insert_constraints(OGRGeometry *in_geometry);
   void tag_odd_even(Triangulation &triangulation);
   void tag_point_set_difference(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries);
   void tag_point_set_union(Triangulation &triangulation, std::list<std::pair<bool, OGRGeometry *> > &geometries);
