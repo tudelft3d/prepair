@@ -39,7 +39,7 @@ public:
   void been_reconstructed(bool reconstructed);
   
 private:
-  std::bitset<4> info;
+  unsigned char info;
 };
 
 #endif

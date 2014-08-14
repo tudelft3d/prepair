@@ -22,42 +22,45 @@
 #include "Triangle_info.h"
 
 Triangle_info::Triangle_info() {
-
+  info = 0x00;
 }
 
 void Triangle_info::clear() {
-  info.reset();
+  info = 0x00;
 }
 
 bool Triangle_info::been_tagged() {
-  return info[0];
+  return (info & 0x01) == 0x01;
 }
 
 void Triangle_info::been_tagged(bool tagged) {
-  info[0] = tagged;
+  if (tagged) info |= 0x01;
+  else info &= 0xfe;
 }
 
 bool Triangle_info::is_in_interior() {
-  return info[1];
+  return (info & 0x02) == 0x02;
 }
 
 void Triangle_info::is_in_interior(bool in_interior) {
-  info[0] = true;
-  info[1] = in_interior;
+  if (in_interior) info |= 0x03;
+  else info = (info & 0xfd) | 0x01;
 }
 
 bool Triangle_info::is_on_border() {
-  return info[2];
+  return (info & 0x04) == 0x04;
 }
 
 void Triangle_info::is_on_border(bool on_border) {
-  info[2] = on_border;
+  if (on_border) info |= 0x04;
+  else info &= 0xfb;
 }
 
 bool Triangle_info::been_reconstructed() {
-  return info[3];
+  return (info & 0x08) == 0x08;
 }
 
 void Triangle_info::been_reconstructed(bool reconstructed) {
-  info[3] = reconstructed;
+  if (reconstructed) info |= 0x08;
+  else info &= 0xf7;
 }
