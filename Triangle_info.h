@@ -22,8 +22,6 @@
 #ifndef TRIANGLEINFO_H
 #define TRIANGLEINFO_H
 
-#include <bitset>
-
 class Triangle_info {
 public:
   Triangle_info();
