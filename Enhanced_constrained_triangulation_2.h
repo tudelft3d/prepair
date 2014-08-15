@@ -26,12 +26,38 @@
 #define ENHANCED_TRIANGULATION_2_H
 
 template <class T>
+class Enhanced_constrained_triangulation_2;
+
+template <class T>
 class Is_Delaunay {
 public:
-  typedef typename T::List_edges List_edges;
+  typedef T Triangulation;
+  typedef typename Triangulation::List_edges List_edges;
   
-  static void make_Delaunay(List_edges &e) {
-    std::cout << "Non-CDT" << std::endl;
+  static void if_Delaunay_make_Delaunay(Enhanced_constrained_triangulation_2<T> &et, List_edges &e) {
+    std::cout << "Unknown triangulation: cannot make Delaunay" << std::endl;
+  }
+};
+
+template <class K, class TDS, class Itag>
+class Is_Delaunay<CGAL::Constrained_Delaunay_triangulation_2<K, TDS, Itag> > {
+public:
+  typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, Itag> Triangulation;
+  typedef typename Triangulation::List_edges List_edges;
+  
+  static void if_Delaunay_make_Delaunay(Enhanced_constrained_triangulation_2<Triangulation> &et, List_edges &e) {
+    et.propagating_flip(e);
+  }
+};
+
+template <class K, class TDS, class Itag>
+class Is_Delaunay<CGAL::Constrained_triangulation_2<K, TDS, Itag> > {
+public:
+  typedef CGAL::Constrained_triangulation_2<K, TDS, Itag> Triangulation;
+  typedef typename Triangulation::List_edges List_edges;
+  
+  static void if_Delaunay_make_Delaunay(Enhanced_constrained_triangulation_2<Triangulation> &et, List_edges &e) {
+    // Do nothing
   }
 };
 
@@ -80,7 +106,7 @@ public:
         T::remove_constrained_edge(incident_face, vertex_opposite_to_incident_edge);
         List_edges possibly_non_Delaunay_edges;
         possibly_non_Delaunay_edges.push_back(Edge(incident_face, vertex_opposite_to_incident_edge));
-        Is_Delaunay<T>::make_Delaunay(possibly_non_Delaunay_edges);
+        Is_Delaunay<T>::if_Delaunay_make_Delaunay(*this, possibly_non_Delaunay_edges);
       } else T::mark_constraint(incident_face, vertex_opposite_to_incident_edge);
       if (vertex_on_other_end != vb) odd_even_insert_constraint(vertex_on_other_end, vb);
       return;
