@@ -43,6 +43,7 @@ int main(int argc, const char *argv[]) {
   po::options_description hidden_options("Hidden options");
   hidden_options.add_options()
   ("robustness", "Compute the robustness of the input and output")
+  ("noOut", "Compute but do not print the output")
   ;
   
   po::options_description all_options;
@@ -183,7 +184,7 @@ int main(int argc, const char *argv[]) {
       if (out_layer->CreateFeature(out_feature) != OGRERR_NONE) {
         std::cout << "Error: Could not create feature." << std::endl;
       } OGRFeature::DestroyFeature(out_feature);
-    } else {
+    } else if (!vm.count("noOut")) {
       char *output_wkt;
       out_geometry->exportToWkt(&output_wkt);
       std::cout << output_wkt << std::endl;
