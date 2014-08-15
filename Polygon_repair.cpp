@@ -115,10 +115,10 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
 
-  this_time = time(NULL);
-  attempt_to_fix_overlapping_constraints();
-  total_time = time(NULL)-this_time;
-  if (time_results) std::cout << "Fixing overlapping constraints: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+//  this_time = time(NULL);
+//  attempt_to_fix_overlapping_constraints();
+//  total_time = time(NULL)-this_time;
+//  if (time_results) std::cout << "Fixing overlapping constraints: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
   this_time = time(NULL);
   tag_odd_even();
@@ -208,8 +208,6 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
 
 void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
   Triangulation::Vertex_handle va, vb;
-  Triangulation::Face_handle face_of_edge;
-  int index_of_edge;
   
   switch (in_geometry->getGeometryType()) {
     case wkbLineString: {
@@ -235,12 +233,7 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
                                   walk_start_location);
 #endif
         if (va == vb) continue;
-        if (triangulation.is_edge(va, vb, face_of_edge, index_of_edge)) {
-          if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
-            triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint (part 1)
-            triangulation.remove_constraint(va, vb);
-          } else triangulation.insert_constraint(va, vb);
-        } else triangulation.insert_constraint(va, vb);
+        triangulation.odd_even_insert_constraint(va, vb);
         walk_start_location = triangulation.incident_faces(vb);
       } break;
     }
@@ -264,24 +257,6 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
       std::cerr << "Error: Input type not supported" << std::endl;
       return;
       break;
-  }
-}
-
-void Polygon_repair::attempt_to_fix_overlapping_constraints() {
-  Triangulation::Face_handle face_of_edge;
-  int index_of_edge;
-  
-  // Trick to remove partially even-overlapping constraints (part 2)
-  for (Triangulation::Subconstraint_iterator current_edge = triangulation.subconstraints_begin();
-       current_edge != triangulation.subconstraints_end();
-       ++current_edge) {
-    if (triangulation.number_of_enclosing_constraints(current_edge->first.first, current_edge->first.second) % 2 == 0) {
-      if (triangulation.is_edge(current_edge->first.first, current_edge->first.second, face_of_edge, index_of_edge)) {
-        if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(face_of_edge, index_of_edge))) {
-          triangulation.remove_constrained_edge(face_of_edge, index_of_edge);
-        }
-      }
-    }
   }
 }
 
