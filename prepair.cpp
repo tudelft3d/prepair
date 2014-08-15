@@ -27,10 +27,10 @@ int main(int argc, const char *argv[]) {
   namespace po = boost::program_options;
   po::options_description main_options("Main options");
   main_options.add_options()
-  ("wkt,w", po::value<std::string>()->value_name("'POLYGON(...)'"), "Read WKT passed as a parameter")
+  ("wkt,w", po::value<std::string>()->value_name("'POLYGON(...)'"), "Read WKT passed directly as a parameter")
   ("wktfile,f", po::value<std::string>()->value_name("PATH"), "Read text file containing one WKT per line")
   ("ogr,i", po::value<std::string>()->value_name("PATH"), "Read file using OGR")
-  ("valid,v", "Check if the input is valid")
+  ("valid,v", "Check if the input is valid rather than repair")
   ("help,h", "View all options")
   ;
   po::options_description advanced_options("Advanced options");
@@ -38,10 +38,12 @@ int main(int argc, const char *argv[]) {
   ("time,t", "Benchmark the different stages of the process")
   ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
   ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
-  ("isr", po::value<double>()->value_name("GRIDSIZE"), "Snap round the input before repairing")
-  ("robustness", "Compute the robustness of the input and output")
+  ("shpout", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
   ;
   po::options_description hidden_options("Hidden options");
+  hidden_options.add_options()
+  ("robustness", "Compute the robustness of the input and output")
+  ;
   
   po::options_description all_options;
   all_options.add(main_options).add(advanced_options).add(hidden_options);
@@ -98,6 +100,9 @@ int main(int argc, const char *argv[]) {
   
   else {
     std::cerr << "Error: No input given" << std::endl;
+    std::cout << "=== prepair help ===" << std::endl;
+    std::cout << main_options << std::endl;
+    std::cout << advanced_options << std::endl;
     return 1;
   }
   
@@ -107,7 +112,7 @@ int main(int argc, const char *argv[]) {
   
   while (true) {
 
-    // Get one polygon
+    // Get one polygon (WKT file)
     if (vm.count("wktfile")) {
       if (infile.eof()) {
         infile.close();
@@ -119,6 +124,7 @@ int main(int argc, const char *argv[]) {
       OGRGeometryFactory::createFromWkt(&cstr, NULL, &in_geometry);
     }
     
+    // Get one polygon (OGR)
     else if (vm.count("ogr")) {
       feature = data_layer->GetNextFeature();
       if (feature == NULL) {
