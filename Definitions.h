@@ -47,6 +47,8 @@
 #include <CGAL/Projection_traits_xy_3.h>
 #endif
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
+
+#include "Compact_constrained_triangulation_face_base_2.h"
 #include "Triangulation_face_base_with_info_on_face_and_edges_2.h"
 #include "Enhanced_constrained_triangulation_2.h"
 
@@ -68,7 +70,7 @@ namespace prepair {
 #endif
   
   typedef CGAL::Triangulation_vertex_base_2<K> VB;
-  typedef CGAL::Constrained_triangulation_face_base_2<K> FB;
+  typedef Compact_constrained_triangulation_face_base_2<K> FB;
   typedef Triangulation_face_base_with_info_on_face_and_edges_2<Triangle_info, unsigned char, K, FB> FBWI;
   typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
   typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, IT> CDT;
