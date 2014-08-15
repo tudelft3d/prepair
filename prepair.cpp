@@ -38,7 +38,7 @@ int main(int argc, const char *argv[]) {
   ("time,t", "Benchmark the different stages of the process")
   ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
   ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
-  ("shpout", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
+  ("shpOut", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
   ;
   po::options_description hidden_options("Hidden options");
   hidden_options.add_options()
@@ -60,16 +60,13 @@ int main(int argc, const char *argv[]) {
   }
   
   time_t start_time = time(NULL);
-////  double min_area = 0;
-////  bool shp_out = false;
-//  bool point_set = false;
   bool time_results = false;
   
   OGRGeometry *in_geometry;
-  OGRDataSource *data_source;
-  OGRLayer *data_layer;
-  OGRFeature *feature;
-  std::ifstream infile;
+  OGRDataSource *in_data_source;
+  OGRLayer *in_data_layer;
+  OGRFeature *in_feature;
+  std::ifstream in_file;
   
   // Init input
   if (vm.count("wkt")) {
@@ -79,8 +76,8 @@ int main(int argc, const char *argv[]) {
   }
   
   else if (vm.count("wktfile")) {
-    infile.open(vm["wktfile"].as<std::string>(), std::ios::in);
-    if (!infile.is_open()) {
+    in_file.open(vm["wktfile"].as<std::string>(), std::ios::in);
+    if (!in_file.is_open()) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
     } else {
@@ -90,12 +87,12 @@ int main(int argc, const char *argv[]) {
   
   else if (vm.count("ogr")) {
     OGRRegisterAll();
-    data_source = OGRSFDriverRegistrar::Open(vm["ogr"].as<std::string>().c_str(), false);
-    if (data_source == NULL) {
+    in_data_source = OGRSFDriverRegistrar::Open(vm["ogr"].as<std::string>().c_str(), false);
+    if (in_data_source == NULL) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
-    } data_layer = data_source->GetLayer(0);
-    data_layer->ResetReading();
+    } in_data_layer = in_data_source->GetLayer(0);
+    in_data_layer->ResetReading();
   }
   
   else {
@@ -110,15 +107,45 @@ int main(int argc, const char *argv[]) {
     time_results = true;
   }
   
+  OGRSFDriver *out_driver;
+  OGRDataSource *out_data_source;
+  OGRLayer *out_layer;
+  if (vm.count("shpOut")) {
+    const char *out_driver_name = "ESRI Shapefile";
+    OGRRegisterAll();
+    out_driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(out_driver_name);
+    if (out_driver == NULL) {
+      std::cout << "Error: OGR Shapefile driver not found." << std::endl;
+      return false;
+    } out_data_source = out_driver->Open(vm["shpOut"].as<std::string>().c_str(), false);
+    if (out_data_source != NULL) {
+      std::cout << "Overwriting " << vm["shpOut"].as<std::string>() << "..." << std::endl;
+      if (out_driver->DeleteDataSource(out_data_source->GetName())!= OGRERR_NONE) {
+        std::cout << "Error: Couldn't erase file with same name." << std::endl;
+        return false;
+      } OGRDataSource::DestroyDataSource(out_data_source);
+    } else {
+      std::cout << "Creating " << vm["shpOut"].as<std::string>() << "..." << std::endl;
+    } out_data_source = out_driver->CreateDataSource(vm["shpOut"].as<std::string>().c_str(), NULL);
+    if (out_data_source == NULL) {
+      std::cout << "Error: Could not create file." << std::endl;
+      return false;
+    } out_layer = out_data_source->CreateLayer("polygons", NULL, wkbPolygon, NULL);
+    if (out_layer == NULL) {
+      std::cout << "Error: Could not create layer." << std::endl;
+      return false;
+    }
+  }
+  
   while (true) {
 
     // Get one polygon (WKT file)
     if (vm.count("wktfile")) {
-      if (infile.eof()) {
-        infile.close();
+      if (in_file.eof()) {
+        in_file.close();
         break;
       } std::string line;
-      std::getline(infile, line);
+      std::getline(in_file, line);
       char *cstr = new char[line.length()+1];
       std::strcpy(cstr, line.c_str());
       OGRGeometryFactory::createFromWkt(&cstr, NULL, &in_geometry);
@@ -126,11 +153,11 @@ int main(int argc, const char *argv[]) {
     
     // Get one polygon (OGR)
     else if (vm.count("ogr")) {
-      feature = data_layer->GetNextFeature();
-      if (feature == NULL) {
-        OGRDataSource::DestroyDataSource(data_source);
+      in_feature = in_data_layer->GetNextFeature();
+      if (in_feature == NULL) {
+        OGRDataSource::DestroyDataSource(in_data_source);
         break;
-      } in_geometry = feature->GetGeometryRef();
+      } in_geometry = in_feature->GetGeometryRef();
     }
     
     if (in_geometry == NULL) break;
@@ -150,10 +177,18 @@ int main(int argc, const char *argv[]) {
     }
     
     // Output results
-//    char *output_wkt;
-//    out_geometry->exportToWkt(&output_wkt);
-//    std::cout << output_wkt << std::endl;
-//    delete output_wkt;
+    if (vm.count("shpOut")) {
+      OGRFeature *out_feature = OGRFeature::CreateFeature(out_layer->GetLayerDefn());
+      out_feature->SetGeometry(out_geometry);
+      if (out_layer->CreateFeature(out_feature) != OGRERR_NONE) {
+        std::cout << "Error: Could not create feature." << std::endl;
+      } OGRFeature::DestroyFeature(out_feature);
+    } else {
+      char *output_wkt;
+      out_geometry->exportToWkt(&output_wkt);
+      std::cout << output_wkt << std::endl;
+      delete output_wkt;
+    }
     
     if (vm.count("wkt")) {
       delete in_geometry;
@@ -165,8 +200,12 @@ int main(int argc, const char *argv[]) {
     }
     
     else if (vm.count("ogr")) {
-      OGRFeature::DestroyFeature(feature);
+      OGRFeature::DestroyFeature(in_feature);
     }
+  }
+  
+  if (vm.count("shpOut")) {
+    OGRDataSource::DestroyDataSource(out_data_source);
   }
   
   // Time results
