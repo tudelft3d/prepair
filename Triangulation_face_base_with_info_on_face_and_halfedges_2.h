@@ -22,11 +22,11 @@
  SOFTWARE.
  */
 
-#ifndef TRIANGULATION_FACE_BASE_WITH_INFO_ON_FACE_AND_EDGES_2_H
-#define TRIANGULATION_FACE_BASE_WITH_INFO_ON_FACE_AND_EDGES_2_H
+#ifndef TRIANGULATION_FACE_BASE_WITH_INFO_ON_FACE_AND_HALFEDGES_2_H
+#define TRIANGULATION_FACE_BASE_WITH_INFO_ON_FACE_AND_HALFEDGES_2_H
 
 template <class FI, class HEI, class GT, class FB = CGAL::Triangulation_face_base_2<GT> >
-class Triangulation_face_base_with_info_on_face_and_edges_2 : public FB {
+class Triangulation_face_base_with_info_on_face_and_halfedges_2 : public FB {
 public:
   typedef typename FB::Triangulation_data_structure Triangulation_data_structure;
   typedef typename Triangulation_data_structure::Vertex_handle Vertex_handle;
@@ -36,7 +36,7 @@ public:
   
   template <class TDS_2>
   struct Rebind_TDS {
-    typedef Triangulation_face_base_with_info_on_face_and_edges_2<FI, HEI, GT, typename FB::template Rebind_TDS<TDS_2>::Other> Other;
+    typedef Triangulation_face_base_with_info_on_face_and_halfedges_2<FI, HEI, GT, typename FB::template Rebind_TDS<TDS_2>::Other> Other;
   };
   
 protected:
@@ -44,9 +44,9 @@ protected:
   Halfedge_info ei[3];
   
 public:
-  Triangulation_face_base_with_info_on_face_and_edges_2() : FB() {}
-  Triangulation_face_base_with_info_on_face_and_edges_2(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2) : FB(v0, v1, v2) {}
-  Triangulation_face_base_with_info_on_face_and_edges_2(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2, Face_handle n0, Face_handle n1, Face_handle n2) : FB(v0, v1, v2, n0, n1, n2) {}
+  Triangulation_face_base_with_info_on_face_and_halfedges_2() : FB() {}
+  Triangulation_face_base_with_info_on_face_and_halfedges_2(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2) : FB(v0, v1, v2) {}
+  Triangulation_face_base_with_info_on_face_and_halfedges_2(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2, Face_handle n0, Face_handle n1, Face_handle n2) : FB(v0, v1, v2, n0, n1, n2) {}
   
   const Face_info &info() const {
     return fi;
