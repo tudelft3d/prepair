@@ -129,7 +129,6 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
 }
 
 OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool time_results) {
-  triangulation.clear();
   std::time_t this_time, total_time;
   std::list<std::pair<bool, OGRGeometry *> > repaired_parts;   // bool indicates if outer/inner are flipped
   
@@ -149,6 +148,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       if (time_results) std::cout << "Repairing individual rings: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
+      triangulation.clear();
       for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
         insert_constraints(current_part->second);
       } total_time = time(NULL)-this_time;
@@ -174,6 +174,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       if (time_results) std::cout << "Repairing individual polygons: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
+      triangulation.clear();
       for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
         insert_constraints(current_part->second);
       } total_time = time(NULL)-this_time;
