@@ -260,7 +260,6 @@ void Polygon_repair::insert_odd_even_constraints(OGRGeometry *in_geometry) {
     case wkbLineString: {
       OGRLinearRing *ring = static_cast<OGRLinearRing *>(in_geometry);
       ring->closeRings();
-      
 #ifdef COORDS_3D
       vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
 #else
@@ -350,10 +349,59 @@ void Polygon_repair::tag_odd_even() {
 	}
 }
 
+void Polygon_repair::tag_as_to_fill_in(OGRGeometry *geometry) {
+  Triangulation::Vertex_handle va, vb;
+  Triangulation::Face_handle face;
+  int index_of_opposite_vertex;
+  
+  switch (geometry->getGeometryType()) {
+      
+    case wkbLineString: {
+      OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
+#ifdef COORDS_3D
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
+#else
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0)), walk_start_location);
+#endif
+      walk_start_location = triangulation.incident_faces(vb);
+      for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
+        va = vb;
+#ifdef COORDS_3D
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point),
+                                        ring->getZ(current_point)),
+                                  walk_start_location);
+#else
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point)),
+                                  walk_start_location);
+#endif
+        if (triangulation.is_edge(va, vb, face, index_of_opposite_vertex)) {
+          
+        }
+        walk_start_location = triangulation.incident_faces(vb);
+      } break;
+    }
+      
+    default:
+      std::cerr << "Error: Input type not supported" << std::endl;
+      return;
+      break;
+  }
+}
+
+void Polygon_repair::tag_as_to_carve_out(OGRGeometry *geometry) {
+  
+}
+
 void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
   // TODO: Implement
-  for (std::list<OGRGeometry *>::iterator current_geometry = geometries.begin(); current_geometry != geometries.end(); ++current_geometry) {
-    
+  std::list<OGRGeometry *>::iterator current_geometry = geometries.begin();
+  ++current_geometry;
+  tag_as_to_fill_in(*current_geometry);
+  while (current_geometry != geometries.end()) {
+    tag_as_to_carve_out(*current_geometry);
+    ++current_geometry;
   }
 }
 

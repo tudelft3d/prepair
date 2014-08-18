@@ -30,6 +30,7 @@
 #define DEFINITIONS_H
 
 #include "Triangle_info.h"
+#include "Edge_info.h"
 
 // STL
 #include <fstream>
@@ -71,7 +72,7 @@ namespace prepair {
   
   typedef CGAL::Triangulation_vertex_base_2<K> VB;
   typedef Compact_constrained_triangulation_face_base_2<K> FB;
-  typedef Triangulation_face_base_with_info_on_face_and_halfedges_2<Triangle_info, unsigned char, K, FB> FBWI;
+  typedef Triangulation_face_base_with_info_on_face_and_halfedges_2<Triangle_info, Edge_info, K, FB> FBWI;
   typedef CGAL::Triangulation_data_structure_2<VB, FBWI> TDS;
   typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, IT> CDT;
   typedef Enhanced_constrained_triangulation_2<CDT> Triangulation;
