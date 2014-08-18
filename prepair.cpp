@@ -30,20 +30,20 @@ int main(int argc, const char *argv[]) {
   ("wkt,w", po::value<std::string>()->value_name("'POLYGON(...)'"), "Read WKT passed directly as a parameter")
   ("wktfile,f", po::value<std::string>()->value_name("PATH"), "Read text file containing one WKT per line")
   ("ogr,i", po::value<std::string>()->value_name("PATH"), "Read file using OGR")
-  ("valid,v", "Check if the input is valid rather than repair")
   ("help,h", "View all options")
   ;
   po::options_description advanced_options("Advanced options");
   advanced_options.add_options()
   ("time,t", "Benchmark the different stages of the process")
-  ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
-  ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
   ("shpOut", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
   ;
   po::options_description hidden_options("Hidden options");
   hidden_options.add_options()
+  ("valid,v", "Check if the input is valid rather than repair")
   ("robustness", "Compute the robustness of the input and output")
   ("noOut", "Compute but do not print the output")
+  ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
+  ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
   ;
   
   po::options_description all_options;

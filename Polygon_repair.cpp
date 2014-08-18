@@ -114,11 +114,6 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
   insert_constraints(in_geometry);
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
-
-//  this_time = time(NULL);
-//  attempt_to_fix_overlapping_constraints();
-//  total_time = time(NULL)-this_time;
-//  if (time_results) std::cout << "Fixing overlapping constraints: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
   this_time = time(NULL);
   tag_odd_even();
