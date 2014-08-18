@@ -24,17 +24,40 @@
 
 class Triangle_info {
 public:
-  Triangle_info();
+  Triangle_info() {
+    info = 0x00;
+  }
   
-  void clear();
-  bool been_tagged();
-  void been_tagged(bool tagged);
-  bool is_in_interior();
-  void is_in_interior(bool in_interior);
-  bool is_on_border();
-  void is_on_border(bool on_order);
-  bool been_reconstructed();
-  void been_reconstructed(bool reconstructed);
+  void clear() {
+    info = 0x00;
+  }
+  
+  bool been_tagged() {
+    return (info & 0x01) == 0x01;
+  }
+  
+  void been_tagged(bool tagged) {
+    if (tagged) info |= 0x01;
+    else info &= 0xfe;
+  }
+  
+  bool is_in_interior() {
+    return (info & 0x02) == 0x02;
+  }
+  
+  void is_in_interior(bool in_interior) {
+    if (in_interior) info |= 0x03;
+    else info = (info & 0xfd) | 0x01;
+  }
+  
+  bool been_reconstructed() {
+    return (info & 0x08) == 0x08;
+  }
+  
+  void been_reconstructed(bool reconstructed) {
+    if (reconstructed) info |= 0x08;
+    else info &= 0xf7;
+  }
   
 private:
   unsigned char info;
