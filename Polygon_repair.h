@@ -42,8 +42,8 @@ private:
   void insert_all_constraints(OGRGeometry *in_geometry);
   void insert_odd_even_constraints(OGRGeometry *in_geometry);
   void tag_odd_even();
-  void tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries);
-  void tag_point_set_union(std::list<std::pair<bool, OGRGeometry *> > &geometries);
+  void tag_point_set_difference(std::list<OGRGeometry *> &geometries);
+  void tag_point_set_union(std::list<OGRGeometry *> &geometries);
   OGRGeometry *reconstruct();
   void get_boundary(Triangulation::Face_handle face, int edge, std::list<Triangulation::Vertex_handle> &out_vertices);
 };

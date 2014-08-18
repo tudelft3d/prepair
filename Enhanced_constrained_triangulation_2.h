@@ -94,7 +94,6 @@ public:
   }
   
   void odd_even_insert_constraint(Vertex_handle va, Vertex_handle vb) {
-    // TODO: Flip to make Delaunay again when constraints are removed?
     CGAL_triangulation_precondition(va != vb);
     
     // If [va, vb] lies on an existing edge

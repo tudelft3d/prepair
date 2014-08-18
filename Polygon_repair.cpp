@@ -130,7 +130,7 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
 
 OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool time_results) {
   std::time_t this_time, total_time;
-  std::list<std::pair<bool, OGRGeometry *> > repaired_parts;   // bool indicates if outer/inner are flipped
+  std::list<OGRGeometry *> repaired_parts;   // bool indicates if outer/inner are flipped
   
   this_time = time(NULL);
   switch (in_geometry->getGeometryType()) {
@@ -141,16 +141,16 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       
     case wkbPolygon: {
       OGRPolygon *polygon = static_cast<OGRPolygon *>(in_geometry);
-      repaired_parts.push_back(std::pair<bool, OGRGeometry *>(false, repair_point_set(polygon->getExteriorRing())));
+      repaired_parts.push_back(repair_point_set(polygon->getExteriorRing()));
       for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
-        repaired_parts.push_back(std::pair<bool, OGRGeometry *>(true, repair_point_set(polygon->getInteriorRing(current_ring))));
+        repaired_parts.push_back(repair_point_set(polygon->getInteriorRing(current_ring)));
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Repairing individual rings: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
       triangulation.clear();
-      for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
-        insert_odd_even_constraints(current_part->second);
+      for (std::list<OGRGeometry *>::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
+        insert_all_constraints(*current_part);
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -166,17 +166,14 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(in_geometry);
       for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
         OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(current_polygon));
-        repaired_parts.push_back(std::pair<bool, OGRGeometry *>(false, repair_point_set(polygon->getExteriorRing())));
-        for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
-          repaired_parts.push_back(std::pair<bool, OGRGeometry *>(true, repair_point_set(polygon->getInteriorRing(current_ring))));
-        }
+        repaired_parts.push_back(repair_point_set(polygon));
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Repairing individual polygons: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
       this_time = time(NULL);
       triangulation.clear();
-      for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
-        insert_odd_even_constraints(current_part->second);
+      for (std::list<OGRGeometry *>::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
+        insert_all_constraints(*current_part);
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -353,11 +350,14 @@ void Polygon_repair::tag_odd_even() {
 	}
 }
 
-void Polygon_repair::tag_point_set_difference(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
+void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
   // TODO: Implement
+  for (std::list<OGRGeometry *>::iterator current_geometry = geometries.begin(); current_geometry != geometries.end(); ++current_geometry) {
+    
+  }
 }
 
-void Polygon_repair::tag_point_set_union(std::list<std::pair<bool, OGRGeometry *> > &geometries) {
+void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
   // TODO: Implement
 }
 
