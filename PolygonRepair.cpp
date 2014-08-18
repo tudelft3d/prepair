@@ -232,6 +232,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
       OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
       
       // Outer
+      polygon->getExteriorRing()->closeRings();
       vb = triangulation.insert(Point(polygon->getExteriorRing()->getX(0), polygon->getExteriorRing()->getY(0)));
       for (int currentPoint = 1; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
         va = vb;
@@ -256,6 +257,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
       
       // Inner
       for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+        polygon->getInteriorRing(currentRing)->closeRings();
         vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(0),
                                         polygon->getInteriorRing(currentRing)->getY(0)));
         for (int currentPoint = 1; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
@@ -288,6 +290,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(currentPolygon));
         
         // Outer
+        polygon->getExteriorRing()->closeRings();
         vb = triangulation.insert(Point(polygon->getExteriorRing()->getX(0),
                                         polygon->getExteriorRing()->getY(0)));
         for (int currentPoint = 1; currentPoint < polygon->getExteriorRing()->getNumPoints(); ++currentPoint) {
@@ -306,6 +309,7 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         
         // Inner
         for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
+          polygon->getInteriorRing(currentRing)->closeRings();
           vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX(0),
                                           polygon->getInteriorRing(currentRing)->getY(0)));
           for (int currentPoint = 1; currentPoint < polygon->getInteriorRing(currentRing)->getNumPoints(); ++currentPoint) {
