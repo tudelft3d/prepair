@@ -47,14 +47,12 @@ endif()
 include( ${CGAL_USE_FILE} )
 
 # Boost
-find_package( Boost REQUIRED COMPONENTS program_options)
+find_package( Boost REQUIRED )
 
 if ( NOT Boost_FOUND )
   message(SEND_ERROR "prepair requires the Boost library")
   return()  
 endif()
-
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 
 # GDAL
 find_package( GDAL )
@@ -69,12 +67,12 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 # ############################
 
 if ( AS_LIBRARY )
-  add_library( prepair SHARED Triangle_info.cpp Polygon_repair.cpp )
+  add_library( prepair SHARED TriangleInfo.cpp PolygonRepair.cpp )
 else()
-  add_executable( prepair  Triangle_info.cpp Polygon_repair.cpp prepair.cpp )
+  add_executable( prepair  TriangleInfo.cpp PolygonRepair.cpp prepair.cpp )
 endif()
 
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
 
 # Link to CGAL and third-party libraries
-target_link_libraries(prepair   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} ${GDAL_LIBRARY} ${Boost_LIBRARIES})
+target_link_libraries(prepair   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} ${GDAL_LIBRARY})

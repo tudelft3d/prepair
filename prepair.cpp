@@ -19,157 +19,189 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include "Polygon_repair.h"
-#include <boost/program_options.hpp>
+#include "PolygonRepair.h"
 
-int main(int argc, const char *argv[]) {
+double  minArea = 0;
+double  isrTolerance = 0;
+bool    shpOut = false;
+bool    computeRobustness = false;
+bool    pointSet = false;
+bool    timeResults = false;
+
+void    usage();
+bool    savetoshp(OGRMultiPolygon* multiPolygon);
+
+
+int main (int argc, const char * argv[]) {
   
-  namespace po = boost::program_options;
-  po::options_description main_options("Main options");
-  main_options.add_options()
-  ("wkt,w", po::value<std::string>()->value_name("'POLYGON(...)'"), "Read WKT passed as a parameter")
-  ("wktfile,f", po::value<std::string>()->value_name("PATH"), "Read text file containing one WKT per line")
-  ("ogr,i", po::value<std::string>()->value_name("PATH"), "Read file using OGR")
-  ("valid,v", "Check if the input is valid")
-  ("help,h", "View all options")
-  ;
-  po::options_description advanced_options("Advanced options");
-  advanced_options.add_options()
-  ("time,t", "Benchmark the different stages of the process")
-  ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
-  ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
-  ("isr", po::value<double>()->value_name("GRIDSIZE"), "Snap round the input before repairing")
-  ("robustness", "Compute the robustness of the input and output")
-  ;
-  po::options_description hidden_options("Hidden options");
+  time_t startTime = time(NULL);
   
-  po::options_description all_options;
-  all_options.add(main_options).add(advanced_options).add(hidden_options);
-  
-  po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, all_options), vm);
-  po::notify(vm);
-  
-  if (vm.count("help")) {
-    std::cout << "=== prepair help ===" << std::endl;
-    std::cout << main_options << std::endl;
-    std::cout << advanced_options << std::endl;
-    return 0;
+  if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+    usage();
+    return(0);
   }
   
-  time_t start_time = time(NULL);
-////  double min_area = 0;
-////  bool shp_out = false;
-//  bool point_set = false;
-  bool time_results = false;
+  OGRGeometry *geometry;
   
-  OGRGeometry *in_geometry;
-  OGRDataSource *data_source;
-  OGRLayer *data_layer;
-  OGRFeature *feature;
-  std::ifstream infile;
-  
-  // Init input
-  if (vm.count("wkt")) {
-    char *cstr = new char[vm["wkt"].as<std::string>().length()+1];
-    std::strcpy(cstr, vm["wkt"].as<std::string>().c_str());
-    OGRGeometryFactory::createFromWkt(&cstr, NULL, &in_geometry);
-  }
-  
-  else if (vm.count("wktfile")) {
-    infile.open(vm["wktfile"].as<std::string>(), std::ios::in);
-    if (!infile.is_open()) {
-      std::cerr << "Error: Could not open file" << std::endl;
-      return 1;
-    } else {
-      std::cout << "Opened: " << vm["wktfile"].as<std::string>() << std::endl;
+  for (int argNum = 1; argNum < argc; ++argNum) {
+    //-- whether to compute the robustness or not
+    if (strcmp(argv[argNum], "--robustness") == 0) {
+      computeRobustness = true;
+    }
+    
+    //-- whether to use the point set topology paradigm or not
+    //-- if not, odd-even paradigm is used by default
+    else if (strcmp(argv[argNum], "--setdiff") == 0) {
+      pointSet = true;
+    }
+    
+    //-- mininum area to keep in output
+    else if (strcmp(argv[argNum], "--minarea") == 0) {
+      minArea = atof(argv[argNum+1]);
+      ++argNum;
+    }
+    
+    //-- ISR snapping tolerance
+    else if (strcmp(argv[argNum], "--isr") == 0) {
+      isrTolerance = atof(argv[argNum+1]);
+      ++argNum;
+      // TODO : scale dataset if tolerance < 1.0 because of CGAL bug
+    }
+    
+    //-- output a shapefile (out.shp) instead of a WKT
+    else if (strcmp(argv[argNum], "--shpOut") == 0) {
+      shpOut = true;
+    }
+    
+    //-- time the results
+    else if (strcmp(argv[argNum], "--time") == 0) {
+      timeResults = true;
+    }
+    
+    //-- reading from WKT passed directly
+    else if (strcmp(argv[argNum], "--wkt") == 0) {
+      unsigned int bufferSize = 100000000;
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char));
+      strcpy(inputWKT, argv[argNum+1]);
+      ++argNum;
+      OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+      if (geometry == NULL) {
+        std::cout << "Error: WKT is not valid" << std::endl;
+        return 1;
+      }
+    }
+    
+    //-- reading from WKT stored in first line of a text file
+    else if (strcmp(argv[argNum], "-f") == 0) {
+      unsigned int bufferSize = 100000000;
+      char *inputWKT = (char *)malloc(bufferSize*sizeof(char));
+      if (argNum + 1 <= argc - 1 && argv[argNum+1][0] != '-') {
+        std::ifstream infile(argv[argNum+1], std::ifstream::in);
+        infile.getline(inputWKT, bufferSize);
+        ++argNum;
+      } else {
+        std::cerr << "Error: Missing input file name." << std::endl;
+        return 1;
+      }
+      OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+      if (geometry == NULL) {
+        std::cout << "Error: WKT is not valid" << std::endl;
+        return 1;
+      }
+    }
+    
+    //-- reading from a ogr dataset (most supported: shp, geojson, gml, etc)
+    else if (strcmp(argv[argNum], "--ogr") == 0) {
+      OGRRegisterAll();
+      OGRDataSource *dataSource = OGRSFDriverRegistrar::Open(argv[argNum+1], false);
+      ++argNum;
+      if (dataSource == NULL) {
+        std::cerr << "Error: Could not open file." << std::endl;
+        return false;
+      }
+      OGRLayer *dataLayer = dataSource->GetLayer(0); //-- get first layer
+      dataLayer->ResetReading();
+      //-- Reads all features in this layer
+      OGRFeature *feature;
+      //-- get first feature
+      if (dataLayer->GetFeatureCount(true) > 1)
+        std::cout << "Reading only the first feature in the shapefile." << std::endl;
+      feature = dataLayer->GetNextFeature();
+      if (feature->GetGeometryRef()->getGeometryType() == wkbPolygon) {
+        geometry = static_cast<OGRPolygon *>(feature->GetGeometryRef());feature->GetGeometryRef();
+      }
+      else {
+        std::cout << "First feature ain't a POLYGON." << std::endl;
+        return(0);
+      }
+      
+    }
+    
+    else {
+      usage();
+      return(0);
     }
   }
   
-  else if (vm.count("ogr")) {
-    OGRRegisterAll();
-    data_source = OGRSFDriverRegistrar::Open(vm["ogr"].as<std::string>().c_str(), false);
-    if (data_source == NULL) {
-      std::cerr << "Error: Could not open file" << std::endl;
-      return 1;
-    } data_layer = data_source->GetLayer(0);
-    data_layer->ResetReading();
+  if (!timeResults) startTime = 0;
+  
+  PolygonRepair prepair;
+  
+  //-- compute robustness
+  if (computeRobustness == true)
+    std::cout << "Robustness of input polygon: " << sqrt(prepair.computeRobustness(geometry)) <<std::endl;
+  
+  
+  OGRMultiPolygon *outPolygons;
+  if (pointSet) {
+    outPolygons = prepair.repairPointSet(geometry, startTime);
+  } else {
+    outPolygons = prepair.repairOddEven(geometry, startTime);
   }
   
+  if (minArea > 0) {
+    prepair.removeSmallPolygons(outPolygons, minArea);
+  }
+  
+  //-- output well known text
+  if (shpOut) {
+    prepair.saveToShp(outPolygons, "out.shp");
+  }
   else {
-    std::cerr << "Error: No input given" << std::endl;
-    return 1;
+    char *outputWKT;
+    outPolygons->exportToWkt(&outputWKT);
+    std::cout << outputWKT << std::endl;
   }
   
-  if (vm.count("time")) {
-    time_results = true;
-  }
   
-  while (true) {
-
-    // Get one polygon
-    if (vm.count("wktfile")) {
-      if (infile.eof()) {
-        infile.close();
-        break;
-      } std::string line;
-      std::getline(infile, line);
-      char *cstr = new char[line.length()+1];
-      std::strcpy(cstr, line.c_str());
-      OGRGeometryFactory::createFromWkt(&cstr, NULL, &in_geometry);
-    }
-    
-    else if (vm.count("ogr")) {
-      feature = data_layer->GetNextFeature();
-      if (feature == NULL) {
-        OGRDataSource::DestroyDataSource(data_source);
-        break;
-      } in_geometry = feature->GetGeometryRef();
-    }
-    
-    if (in_geometry == NULL) break;
-    
-    // Do what needs to be done
-    Polygon_repair prepair;
-    
-    if (vm.count("valid")) {
-      prepair.is_iso_and_ogc_valid(in_geometry);
-    }
-    
-    OGRGeometry *out_geometry;
-    if (vm.count("setdiff")) {
-      out_geometry = prepair.repair_point_set(in_geometry, time_results);
-    } else {
-      out_geometry = prepair.repair_odd_even(in_geometry, time_results);
-    }
-    
-    // Output results
-//    char *output_wkt;
-//    out_geometry->exportToWkt(&output_wkt);
-//    std::cout << output_wkt << std::endl;
-//    delete output_wkt;
-    
-    if (vm.count("wkt")) {
-      delete in_geometry;
-      break;
-    }
-    
-    else if (vm.count("wktfile")) {
-      delete in_geometry;
-    }
-    
-    else if (vm.count("ogr")) {
-      OGRFeature::DestroyFeature(feature);
-    }
-  }
+  //-- compute robustness
+  if (computeRobustness == true)
+    std::cout << "Robustness of output polygon: " << sqrt(prepair.computeRobustness()) <<std::endl;
   
-  // Time results
-  if (time_results) {
-    std::time_t total_time = time(NULL)-start_time;
-    std::cout << "Done! Process finished in " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  //-- time results
+  if (timeResults) {
+    time_t totalTime = time(NULL)-startTime;
+    std::cout << "Done! Process finished in " << totalTime/60 << " minutes " << totalTime%60 << " seconds." << std::endl;
   }
   
   return 0;
+}
+
+void usage() {
+  std::cout << "=== prepair Help ===\n" << std::endl;
+  std::cout << "Usage:   prepair --wkt 'POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))'" << std::endl;
+  std::cout << "OR" << std::endl;
+  std::cout << "Usage:   prepair -f infile.txt (infile.txt must contain one WKT on the 1st line)" << std::endl;
+  std::cout << "OR" << std::endl;
+  std::cout << "Usage:   prepair --ogr infile.shp (first polygon of infile.shp is processed)" << std::endl;
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "Additional options:" << std::endl;
+  std::cout << "--robustness   Compute the robustness of the input/output" << std::endl;
+  std::cout << "--setdiff      Uses the point set topology paradigm (default: odd-even paradigm)" << std::endl;
+  std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
+  std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
+  std::cout << "--time         Benchmark the different stages of the process" << std::endl;
+  
 }
 
 
