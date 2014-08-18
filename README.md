@@ -8,7 +8,7 @@ prepair performs more or less the same as the PostGIS 2.0's function [ST_MakeVal
 We have implemented two repair paradigms: 
 
   1. an extension of the [odd-even algorithm](https://en.wikipedia.org/wiki/Even-odd_rule) to handle GIS polygons containing inner rings and degeneracies; 
-  2. setdiff: one where we follow a *point set difference* rule for the rings (outer - inner).
+  2. setdiff: one where we follow a *point set difference* rule for the rings (outer - inner), of which a union is computed for multipolygons.
 
 prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is used) and [OGR](http://www.gdal.org/ogr/) is used to read/write WKT.
 
