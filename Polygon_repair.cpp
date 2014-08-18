@@ -111,7 +111,7 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
   std::time_t this_time, total_time;
   
   this_time = time(NULL);
-  insert_constraints(in_geometry);
+  insert_odd_even_constraints(in_geometry);
   total_time = time(NULL)-this_time;
   if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
   
@@ -150,7 +150,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       this_time = time(NULL);
       triangulation.clear();
       for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
-        insert_constraints(current_part->second);
+        insert_odd_even_constraints(current_part->second);
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -176,7 +176,7 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       this_time = time(NULL);
       triangulation.clear();
       for (std::list<std::pair<bool, OGRGeometry *> >::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
-        insert_constraints(current_part->second);
+        insert_odd_even_constraints(current_part->second);
       } total_time = time(NULL)-this_time;
       if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
       
@@ -202,7 +202,61 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
   return out_geometry;
 }
 
-void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
+void Polygon_repair::insert_all_constraints(OGRGeometry *in_geometry) {
+  Triangulation::Vertex_handle va, vb;
+  
+  switch (in_geometry->getGeometryType()) {
+    case wkbLineString: {
+      OGRLinearRing *ring = static_cast<OGRLinearRing *>(in_geometry);
+      ring->closeRings();
+      
+#ifdef COORDS_3D
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
+#else
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0)), walk_start_location);
+#endif
+      walk_start_location = triangulation.incident_faces(vb);
+      for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
+        va = vb;
+#ifdef COORDS_3D
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point),
+                                        ring->getZ(current_point)),
+                                  walk_start_location);
+#else
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point)),
+                                  walk_start_location);
+#endif
+        if (va == vb) continue;
+        triangulation.insert_constraint(va, vb);
+        walk_start_location = triangulation.incident_faces(vb);
+      } break;
+    }
+      
+    case wkbPolygon: {
+      OGRPolygon *polygon = static_cast<OGRPolygon *>(in_geometry);
+      insert_odd_even_constraints(polygon->getExteriorRing());
+      for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
+        insert_all_constraints(polygon->getInteriorRing(current_ring));
+      } break;
+    }
+      
+    case wkbMultiPolygon: {
+      OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(in_geometry);
+      for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
+        insert_all_constraints(multipolygon->getGeometryRef(current_polygon));
+      } break;
+    }
+      
+    default:
+      std::cerr << "Error: Input type not supported" << std::endl;
+      return;
+      break;
+  }
+}
+
+void Polygon_repair::insert_odd_even_constraints(OGRGeometry *in_geometry) {
   Triangulation::Vertex_handle va, vb;
   
   switch (in_geometry->getGeometryType()) {
@@ -236,16 +290,16 @@ void Polygon_repair::insert_constraints(OGRGeometry *in_geometry) {
       
     case wkbPolygon: {
       OGRPolygon *polygon = static_cast<OGRPolygon *>(in_geometry);
-      insert_constraints(polygon->getExteriorRing());
+      insert_odd_even_constraints(polygon->getExteriorRing());
       for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
-        insert_constraints(polygon->getInteriorRing(current_ring));
+        insert_odd_even_constraints(polygon->getInteriorRing(current_ring));
       } break;
     }
       
     case wkbMultiPolygon: {
       OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(in_geometry);
       for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
-        insert_constraints(multipolygon->getGeometryRef(current_polygon));
+        insert_odd_even_constraints(multipolygon->getGeometryRef(current_polygon));
       } break;
     }
       
