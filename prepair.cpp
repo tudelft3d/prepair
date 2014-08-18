@@ -84,9 +84,29 @@ int main (int argc, const char * argv[]) {
       char *inputWKT = (char *)malloc(bufferSize*sizeof(char));
       strcpy(inputWKT, argv[argNum+1]);
       ++argNum;
-      OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
-      if (geometry == NULL) {
-        std::cout << "Error: WKT is not valid" << std::endl;
+      OGRErr err = OGRGeometryFactory::createFromWkt(&inputWKT, NULL, &geometry);
+      if (err != OGRERR_NONE) {
+        switch (err) {
+          case OGRERR_UNSUPPORTED_GEOMETRY_TYPE:
+            std::cerr << "Error: geometry must be Polygon or MultiPolygon" << std::endl;
+            break;
+          case OGRERR_NOT_ENOUGH_DATA:
+          case OGRERR_CORRUPT_DATA:
+            std::cerr << "Error: corrupted input" << std::endl;
+            break;
+          default:
+            std::cerr << "Error: corrupted input" << std::endl;
+            break;
+        }
+        return 1;
+      }
+      if (geometry->IsEmpty() == 1) {
+        std::cerr << "Error: empty geometry" << std::endl;
+        return 1;
+      }
+      if ( (geometry->getGeometryType() != wkbPolygon) && 
+           (geometry->getGeometryType() != wkbMultiPolygon) ) {
+        std::cerr << "Error: geometry must be Polygon or MultiPolygon" << std::endl;
         return 1;
       }
     }
