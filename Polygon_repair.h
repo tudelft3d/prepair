@@ -22,7 +22,7 @@
 #ifndef POLYGONREPAIR_H
 #define POLYGONREPAIR_H
 
-#include "definitions.h"
+#include "Definitions.h"
 
 class Polygon_repair {
 public:
