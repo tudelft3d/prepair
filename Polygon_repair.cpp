@@ -108,22 +108,22 @@ bool Polygon_repair::is_iso_and_ogc_valid(OGRGeometry *in_geometry, const std::s
 
 OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time_results) {
   triangulation.clear();
-  std::time_t this_time, total_time;
+  std::clock_t this_time, total_time;
   
-  this_time = time(NULL);
+  this_time = clock();
   insert_odd_even_constraints(in_geometry);
-  total_time = time(NULL)-this_time;
-  if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  total_time = clock()-this_time;
+  if (time_results) std::cout << "Triangulation: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
   
-  this_time = time(NULL);
+  this_time = clock();
   tag_odd_even();
-  total_time = time(NULL)-this_time;
-  if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  total_time = clock()-this_time;
+  if (time_results) std::cout << "Tagging: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
   
-  this_time = time(NULL);
+  this_time = clock();
   OGRGeometry *out_geometry = reconstruct();
-  total_time = time(NULL)-this_time;
-  if (time_results) std::cout << "Reconstruction: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+  total_time = clock()-this_time;
+  if (time_results) std::cout << "Reconstruction: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
   
   return out_geometry;
 }

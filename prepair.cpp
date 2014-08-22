@@ -60,7 +60,7 @@ int main(int argc, const char *argv[]) {
     return 0;
   }
   
-  time_t start_time = time(NULL);
+  std::clock_t start_time = clock();
   bool time_results = false;
   
   OGRGeometry *in_geometry;
@@ -235,8 +235,8 @@ int main(int argc, const char *argv[]) {
   
   // Time results
   if (time_results) {
-    std::time_t total_time = time(NULL)-start_time;
-    std::cout << "Done! Process finished in " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+    std::clock_t total_time = clock()-start_time;
+    std::cout << "Done! Process finished in " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
   }
   
   return 0;
