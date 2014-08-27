@@ -308,47 +308,32 @@ void Polygon_repair::insert_odd_even_constraints(OGRGeometry *in_geometry) {
 }
 
 void Polygon_repair::tag_odd_even() {
-  
-  // Clean tags
-  for (prepair::Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
+  for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
     current_face->info().clear();
+  }
   
-  // Initialise tagging
-  std::stack<prepair::Triangulation::Face_handle> interior_stack, exterior_stack;
-  exterior_stack.push(triangulation.infinite_face());
-  std::stack<prepair::Triangulation::Face_handle> *current_stack = &exterior_stack;
-  std::stack<prepair::Triangulation::Face_handle> *dual_stack = &interior_stack;
-  bool labelling_interior = false;
-  
-  
-  // Until we finish
-  while (!interior_stack.empty() || !exterior_stack.empty()) {
-    
-    // Give preference to whatever we're already doing
-    while (!current_stack->empty()) {
-      prepair::Triangulation::Face_handle current_face = current_stack->top();
-			current_stack->pop();
-      if (current_face->info().been_tagged()) continue;
-			current_face->info().is_in_interior(labelling_interior);
-      for (int current_edge = 0; current_edge < 3; ++current_edge) {
-        if (!current_face->neighbor(current_edge)->info().been_tagged()) {
-          if (current_face->is_constrained(current_edge))
-            dual_stack->push(current_face->neighbor(current_edge));
-          else
-            current_stack->push(current_face->neighbor(current_edge));
+  std::list<Triangulation::Face_handle> to_tag;
+  triangulation.infinite_face()->info().is_in_interior(false);
+  triangulation.infinite_face()->info().been_tagged(true);
+  to_tag.push_back(triangulation.infinite_face());
+  while (to_tag.size() > 0) {
+    CGAL_assertion(to_tag.front()->info().been_tagged());
+    for (int neighbour = 0; neighbour < 3; ++neighbour) {
+      if (to_tag.front()->neighbor(neighbour)->info().been_tagged()) {
+        if (triangulation.is_constrained(Triangulation::Edge(to_tag.front(), neighbour))) CGAL_assertion(to_tag.front()->neighbor(neighbour)->info().is_in_interior() != to_tag.front()->info().is_in_interior());
+        else CGAL_assertion(to_tag.front()->neighbor(neighbour)->info().is_in_interior() == to_tag.front()->info().is_in_interior());
+      } else {
+        to_tag.front()->neighbor(neighbour)->info().been_tagged(true);
+        if (triangulation.is_constrained(Triangulation::Edge(to_tag.front(), neighbour))) {
+          to_tag.front()->neighbor(neighbour)->info().is_in_interior(!to_tag.front()->info().is_in_interior());
+          to_tag.push_back(to_tag.front()->neighbor(neighbour));
+        } else {
+          to_tag.front()->neighbor(neighbour)->info().is_in_interior(to_tag.front()->info().is_in_interior());
+          to_tag.push_back(to_tag.front()->neighbor(neighbour));
         }
       }
-    }
-    
-    // Flip
-    if (!labelling_interior) {
-      current_stack = &interior_stack;
-      dual_stack = &exterior_stack;
-    } else {
-      current_stack = &exterior_stack;
-      dual_stack = &interior_stack;
-    } labelling_interior = !labelling_interior;
-	}
+    } to_tag.pop_front();
+  }
 }
 
 void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
