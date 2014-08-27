@@ -344,12 +344,40 @@ void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometri
   while (current_geometry != geometries.end()) {
     tag_as_to_subtract(*current_geometry);
     ++current_geometry;
-  }
+  } tag_based_on_edge_counts();
 }
 
 void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
   for (std::list<OGRGeometry *>::iterator current_geometry = geometries.begin(); current_geometry != geometries.end(); ++current_geometry) {
     tag_as_to_add(*current_geometry);
+  } tag_based_on_edge_counts();
+}
+
+void Polygon_repair::tag_based_on_edge_counts() {
+  for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
+    current_face->info().clear();
+  }
+  
+  std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
+  triangulation.infinite_face()->info().is_in_interior(false);
+  triangulation.infinite_face()->info().been_tagged(true);
+  to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
+  while (to_tag.size() > 0) {
+    CGAL_assertion(to_tag.front().first->info().been_tagged());
+    for (int neighbour = 0; neighbour < 3; ++neighbour) {
+      int index_in_neighbour;
+      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
+      char count = to_tag.front().first->halfedge_info(neighbour).count()+to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
+      if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
+        if (to_tag.front().second+count >= 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+        else CGAL_assertion(!to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+      } else {
+        to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
+        if (to_tag.front().second+count >= 0) to_tag.front().first->neighbor(neighbour)->info().is_in_interior(true);
+        else to_tag.front().first->neighbor(neighbour)->info().is_in_interior(false);
+        to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
+      }
+    } to_tag.pop_front();
   }
 }
 
@@ -406,7 +434,16 @@ void Polygon_repair::tag_as_to_add(OGRGeometry *geometry) {
 }
 
 void Polygon_repair::tag_as_to_add(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb) {
-  
+  Triangulation::Vertex_handle vertex_on_other_side;
+  Triangulation::Face_handle face_of_edge;
+  int opposite_vertex_to_edge;
+  if (!triangulation.includes_edge(va, vb, vertex_on_other_side, face_of_edge, opposite_vertex_to_edge)) {
+    std::cerr << "Error: could not find edge! Result likely incorrect." << std::endl;
+    return;
+  } face_of_edge->halfedge_info(opposite_vertex_to_edge).add_one();
+  if (vertex_on_other_side != vb) {
+    tag_as_to_add(vertex_on_other_side, vb);
+  }
 }
 
 void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
@@ -462,7 +499,16 @@ void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
 }
 
 void Polygon_repair::tag_as_to_subtract(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb) {
-  
+  Triangulation::Vertex_handle vertex_on_other_side;
+  Triangulation::Face_handle face_of_edge;
+  int opposite_vertex_to_edge;
+  if (!triangulation.includes_edge(va, vb, vertex_on_other_side, face_of_edge, opposite_vertex_to_edge)) {
+    std::cerr << "Error: could not find edge! Result likely incorrect." << std::endl;
+    return;
+  } face_of_edge->halfedge_info(opposite_vertex_to_edge).subtract_one();
+  if (vertex_on_other_side != vb) {
+    tag_as_to_subtract(vertex_on_other_side, vb);
+  }
 }
 
 OGRGeometry *Polygon_repair::reconstruct() {
@@ -473,7 +519,7 @@ OGRGeometry *Polygon_repair::reconstruct() {
   
   // Reconstruct
   OGRMultiPolygon *out_geometries = new OGRMultiPolygon();
-  for (prepair::Triangulation::Finite_faces_iterator seeding_face = triangulation.finite_faces_begin(); seeding_face != triangulation.finite_faces_end(); ++seeding_face) {
+  for (Triangulation::Finite_faces_iterator seeding_face = triangulation.finite_faces_begin(); seeding_face != triangulation.finite_faces_end(); ++seeding_face) {
     
     if (!seeding_face->info().is_in_interior() || seeding_face->info().been_reconstructed()) continue;
     seeding_face->info().been_reconstructed(true);

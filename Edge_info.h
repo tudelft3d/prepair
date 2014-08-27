@@ -45,6 +45,10 @@ public:
     --info;
   }
   
+  char count() {
+    return info;
+  }
+  
 private:
   char info;
 };
