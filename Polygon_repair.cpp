@@ -356,6 +356,7 @@ void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
 void Polygon_repair::tag_based_on_edge_counts() {
   for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
     current_face->info().clear();
+//    std::cout << "Counts: " << int(current_face->halfedge_info(0).count()) << " " << int(current_face->halfedge_info(1).count()) << " " << int(current_face->halfedge_info(2).count()) << std::endl;
   }
   
   std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
@@ -367,6 +368,7 @@ void Polygon_repair::tag_based_on_edge_counts() {
     for (int neighbour = 0; neighbour < 3; ++neighbour) {
       int index_in_neighbour;
       CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
+      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
       char count = to_tag.front().first->halfedge_info(neighbour).count()+to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
       if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
         if (to_tag.front().second+count >= 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
@@ -388,6 +390,7 @@ void Polygon_repair::tag_as_to_add(OGRGeometry *geometry) {
       
     case wkbLineString: {
       OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
+      ring->closeRings();
 #ifdef COORDS_3D
       vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
 #else
@@ -453,6 +456,7 @@ void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
       
     case wkbLineString: {
       OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
+      ring->closeRings();
 #ifdef COORDS_3D
       vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
 #else
