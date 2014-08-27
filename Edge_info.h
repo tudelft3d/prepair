@@ -22,36 +22,31 @@
 #ifndef EDGE_INFO_H
 #define EDGE_INFO_H
 
+#include <CGAL/assertions.h>
+
 class Edge_info {
 public:
   Edge_info() {
-    info = 0x00;
+    CGAL_assertion(sizeof(char) == 1);
+    info = 0;
   }
   
   void clear() {
-    info = 0x00;
+    info = 0;
   }
   
-  bool to_fill_in() {
-    return (info & 0x01) == 0x01;
+  void add_one() {
+    CGAL_precondition(info < 127);
+    ++info;
   }
   
-  void to_fill_in(bool fill_in) {
-    if (fill_in) info |= 0x01;
-    else info &= 0xfe;
-  }
-  
-  bool to_carve_out() {
-    return (info & 0x02) == 0x02;
-  }
-  
-  void to_carve_out(bool carve_out) {
-    if (carve_out) info |= 0x02;
-    else info &= 0xfd;
+  void subtract_one() {
+    CGAL_precondition(info > -128);
+    --info;
   }
   
 private:
-  unsigned char info;
+  char info;
 };
 
 #endif

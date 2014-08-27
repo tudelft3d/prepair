@@ -23,6 +23,7 @@
 
 bool Polygon_repair::is_iso_and_ogc_valid(OGRGeometry *in_geometry, const std::string &pre_text, bool time_results) {
   // TODO: Implement
+  CGAL_assertion(false);
   triangulation.clear();
   std::time_t this_time, total_time;
   bool is_valid = true;
@@ -307,6 +308,7 @@ void Polygon_repair::insert_odd_even_constraints(OGRGeometry *in_geometry) {
 }
 
 void Polygon_repair::tag_odd_even() {
+  
   // Clean tags
   for (prepair::Triangulation::Face_handle current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face)
     current_face->info().clear();
@@ -349,10 +351,25 @@ void Polygon_repair::tag_odd_even() {
 	}
 }
 
-void Polygon_repair::tag_as_to_fill_in(OGRGeometry *geometry) {
+void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
+  if (geometries.size() == 0) return;
+  std::list<OGRGeometry *>::iterator current_geometry = geometries.begin();
+  tag_as_to_add(*current_geometry);
+  ++current_geometry;
+  while (current_geometry != geometries.end()) {
+    tag_as_to_subtract(*current_geometry);
+    ++current_geometry;
+  }
+}
+
+void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
+  for (std::list<OGRGeometry *>::iterator current_geometry = geometries.begin(); current_geometry != geometries.end(); ++current_geometry) {
+    tag_as_to_add(*current_geometry);
+  }
+}
+
+void Polygon_repair::tag_as_to_add(OGRGeometry *geometry) {
   Triangulation::Vertex_handle va, vb;
-  Triangulation::Face_handle face;
-  int index_of_opposite_vertex;
   
   switch (geometry->getGeometryType()) {
       
@@ -376,10 +393,23 @@ void Polygon_repair::tag_as_to_fill_in(OGRGeometry *geometry) {
                                         ring->getY(current_point)),
                                   walk_start_location);
 #endif
-        if (triangulation.is_edge(va, vb, face, index_of_opposite_vertex)) {
-          
-        }
+        tag_as_to_add(va, vb);
         walk_start_location = triangulation.incident_faces(vb);
+      } break;
+    }
+      
+    case wkbPolygon: {
+      OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
+      tag_as_to_add(polygon->getExteriorRing());
+      for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
+        tag_as_to_subtract(polygon->getInteriorRing(current_ring));
+      } break;
+    }
+      
+    case wkbMultiPolygon: {
+      OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(geometry);
+      for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
+        tag_as_to_add(multipolygon->getGeometryRef(current_polygon));
       } break;
     }
       
@@ -390,23 +420,64 @@ void Polygon_repair::tag_as_to_fill_in(OGRGeometry *geometry) {
   }
 }
 
-void Polygon_repair::tag_as_to_carve_out(OGRGeometry *geometry) {
+void Polygon_repair::tag_as_to_add(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb) {
   
 }
 
-void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
-  // TODO: Implement
-  std::list<OGRGeometry *>::iterator current_geometry = geometries.begin();
-  ++current_geometry;
-  tag_as_to_fill_in(*current_geometry);
-  while (current_geometry != geometries.end()) {
-    tag_as_to_carve_out(*current_geometry);
-    ++current_geometry;
+void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
+  Triangulation::Vertex_handle va, vb;
+  
+  switch (geometry->getGeometryType()) {
+      
+    case wkbLineString: {
+      OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
+#ifdef COORDS_3D
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
+#else
+      vb = triangulation.insert(Point(ring->getX(0), ring->getY(0)), walk_start_location);
+#endif
+      walk_start_location = triangulation.incident_faces(vb);
+      for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
+        va = vb;
+#ifdef COORDS_3D
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point),
+                                        ring->getZ(current_point)),
+                                  walk_start_location);
+#else
+        vb = triangulation.insert(Point(ring->getX(current_point),
+                                        ring->getY(current_point)),
+                                  walk_start_location);
+#endif
+        tag_as_to_subtract(va, vb);
+        walk_start_location = triangulation.incident_faces(vb);
+      } break;
+    }
+      
+    case wkbPolygon: {
+      OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
+      tag_as_to_subtract(polygon->getExteriorRing());
+      for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
+        tag_as_to_add(polygon->getInteriorRing(current_ring));
+      } break;
+    }
+      
+    case wkbMultiPolygon: {
+      OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(geometry);
+      for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
+        tag_as_to_subtract(multipolygon->getGeometryRef(current_polygon));
+      } break;
+    }
+      
+    default:
+      std::cerr << "Error: Input type not supported" << std::endl;
+      return;
+      break;
   }
 }
 
-void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
-  // TODO: Implement
+void Polygon_repair::tag_as_to_subtract(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb) {
+  
 }
 
 OGRGeometry *Polygon_repair::reconstruct() {
