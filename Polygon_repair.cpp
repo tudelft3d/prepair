@@ -130,10 +130,10 @@ OGRGeometry *Polygon_repair::repair_odd_even(OGRGeometry *in_geometry, bool time
 }
 
 OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool time_results) {
-  std::time_t this_time, total_time;
+  std::clock_t this_time, total_time;
   std::list<OGRGeometry *> repaired_parts;   // bool indicates if outer/inner are flipped
   
-  this_time = time(NULL);
+  this_time = clock();
   switch (in_geometry->getGeometryType()) {
     case wkbLineString: {
       return repair_odd_even(in_geometry, time_results);
@@ -145,20 +145,20 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       repaired_parts.push_back(repair_point_set(polygon->getExteriorRing()));
       for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
         repaired_parts.push_back(repair_point_set(polygon->getInteriorRing(current_ring)));
-      } total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Repairing individual rings: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      } total_time = clock()-this_time;
+      if (time_results) std::cout << "Repairing individual rings: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
-      this_time = time(NULL);
+      this_time = clock();
       triangulation.clear();
       for (std::list<OGRGeometry *>::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
         insert_all_constraints(*current_part);
-      } total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      } total_time = clock()-this_time;
+      if (time_results) std::cout << "Triangulation: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
-      this_time = time(NULL);
+      this_time = clock();
       tag_point_set_difference(repaired_parts);
-      total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      total_time = clock()-this_time;
+      if (time_results) std::cout << "Tagging: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
       break;
     }
@@ -168,20 +168,20 @@ OGRGeometry *Polygon_repair::repair_point_set(OGRGeometry *in_geometry, bool tim
       for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
         OGRPolygon *polygon = static_cast<OGRPolygon *>(multipolygon->getGeometryRef(current_polygon));
         repaired_parts.push_back(repair_point_set(polygon));
-      } total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Repairing individual polygons: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      } total_time = clock()-this_time;
+      if (time_results) std::cout << "Repairing individual polygons: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
-      this_time = time(NULL);
+      this_time = clock();
       triangulation.clear();
       for (std::list<OGRGeometry *>::iterator current_part = repaired_parts.begin(); current_part != repaired_parts.end(); ++current_part) {
         insert_all_constraints(*current_part);
-      } total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Triangulation: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      } total_time = clock()-this_time;
+      if (time_results) std::cout << "Triangulation: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
-      this_time = time(NULL);
+      this_time = clock();
       tag_point_set_union(repaired_parts);
-      total_time = time(NULL)-this_time;
-      if (time_results) std::cout << "Tagging: " << total_time/60 << " minutes " << total_time%60 << " seconds." << std::endl;
+      total_time = clock()-this_time;
+      if (time_results) std::cout << "Tagging: " << total_time / double(CLOCKS_PER_SEC) << " seconds." << std::endl;
       
       break;
     }
@@ -339,13 +339,10 @@ void Polygon_repair::tag_odd_even() {
 void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
   if (geometries.size() == 0) return;
   std::list<OGRGeometry *>::iterator current_geometry = geometries.begin();
-  validate_edge_counts();
   tag_as_to_add(*current_geometry);
-  validate_edge_counts();
   ++current_geometry;
   while (current_geometry != geometries.end()) {
     tag_as_to_subtract(*current_geometry);
-    validate_edge_counts();
     ++current_geometry;
   } tag_based_on_edge_counts();
 }
@@ -361,28 +358,26 @@ void Polygon_repair::tag_based_on_edge_counts() {
     current_face->info().clear();
   }
   
-//  std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
-//  triangulation.infinite_face()->info().is_in_interior(false);
-//  triangulation.infinite_face()->info().been_tagged(true);
-//  to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
-//  while (to_tag.size() > 0) {
-//    CGAL_assertion(to_tag.front().first->info().been_tagged());
-//    for (int neighbour = 0; neighbour < 3; ++neighbour) {
-//      int index_in_neighbour;
-//      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
-//      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
-//      char count = to_tag.front().first->halfedge_info(neighbour).count()+to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
-//      if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
-//        if (to_tag.front().second+count >= 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
-//        else CGAL_assertion(!to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
-//      } else {
-//        to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
-//        if (to_tag.front().second+count >= 0) to_tag.front().first->neighbor(neighbour)->info().is_in_interior(true);
-//        else to_tag.front().first->neighbor(neighbour)->info().is_in_interior(false);
-//        to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
-//      }
-//    } to_tag.pop_front();
-//  }
+  std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
+  triangulation.infinite_face()->info().been_tagged(true);
+  triangulation.infinite_face()->info().count = 0;
+  to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
+  while (to_tag.size() > 0) {
+    CGAL_assertion(to_tag.front().first->info().been_tagged());
+    for (int neighbour = 0; neighbour < 3; ++neighbour) {
+      int index_in_neighbour;
+      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
+      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
+      char count = to_tag.front().first->halfedge_info(neighbour).count() - to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
+      if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
+        CGAL_assertion(to_tag.front().second+count == to_tag.front().first->neighbor(neighbour)->info().count);
+      } else {
+        to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
+        to_tag.front().first->neighbor(neighbour)->info().count = to_tag.front().second+count;
+        to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
+      }
+    } to_tag.pop_front();
+  }
 }
 
 void Polygon_repair::validate_edge_counts() {
