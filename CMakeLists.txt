@@ -69,9 +69,9 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 # ############################
 
 if ( AS_LIBRARY )
-  add_library( prepair SHARED Triangle_info.cpp Polygon_repair.cpp )
+  add_library( prepair SHARED Polygon_repair.cpp )
 else()
-  add_executable( prepair  Triangle_info.cpp Polygon_repair.cpp prepair.cpp )
+  add_executable( prepair Polygon_repair.cpp prepair.cpp )
 endif()
 
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
