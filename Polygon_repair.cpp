@@ -308,6 +308,7 @@ void Polygon_repair::insert_odd_even_constraints(OGRGeometry *in_geometry) {
 }
 
 void Polygon_repair::tag_odd_even() {
+  if (triangulation.number_of_faces() == 0) return;
   for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
     current_face->info().clear();
   }
@@ -354,6 +355,7 @@ void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
 }
 
 void Polygon_repair::tag_based_on_edge_counts() {
+  if (triangulation.number_of_faces() == 0) return;
   for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
     current_face->info().clear();
   }

@@ -103,6 +103,7 @@ public:
     if (T::includes_edge(va, vb, vertex_on_other_end, incident_face, vertex_opposite_to_incident_edge)) {
       if (T::is_constrained(Edge(incident_face, vertex_opposite_to_incident_edge))) {
         T::remove_constrained_edge(incident_face, vertex_opposite_to_incident_edge);
+        if (T::number_of_vertices() == 2) return;
         List_edges possibly_non_Delaunay_edges;
         possibly_non_Delaunay_edges.push_back(Edge(incident_face, vertex_opposite_to_incident_edge));
         Is_Delaunay<T>::if_Delaunay_make_Delaunay(*this, possibly_non_Delaunay_edges);
