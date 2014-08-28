@@ -77,14 +77,16 @@ int main(int argc, const char *argv[]) {
     if (err != OGRERR_NONE) {
       switch (err) {
         case OGRERR_UNSUPPORTED_GEOMETRY_TYPE:
-          std::cerr << "Error: geometry must be Polygon or MultiPolygon" << std::endl;
+          std::cerr << "Error: unsupported geometry" << std::endl;
           break;
         case OGRERR_NOT_ENOUGH_DATA:
+          std::cerr << "Error: degenerate input" << std::endl;
+          break;
         case OGRERR_CORRUPT_DATA:
           std::cerr << "Error: corrupted input" << std::endl;
           break;
         default:
-          std::cerr << "Error: corrupted input" << std::endl;
+          std::cerr << "Error" << std::endl;
           break;
       }
       return 1;
