@@ -33,7 +33,7 @@ public:
   bool is_iso_and_ogc_valid(OGRGeometry *in_geometry, const std::string &pre_text = std::string("\t"), bool time_results = false);
   OGRGeometry *repair_odd_even(OGRGeometry *in_geometry, bool time_results = false);
   OGRGeometry *repair_point_set(OGRGeometry *in_geometry, bool time_results = false);
-  void remove_small_parts(OGRGeometry *geometry, double min_area);
+  bool remove_small_parts(OGRGeometry *geometry, double min_area);
 
 private:
   Triangulation triangulation;

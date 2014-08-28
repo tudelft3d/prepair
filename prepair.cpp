@@ -34,16 +34,16 @@ int main(int argc, const char *argv[]) {
   ;
   po::options_description advanced_options("Advanced options");
   advanced_options.add_options()
-  ("time,t", "Benchmark the different stages of the process")
   ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
+  ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
   ("shpOut", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
+  ("time,t", "Benchmark the different stages of the process")
   ;
   po::options_description hidden_options("Hidden options");
   hidden_options.add_options()
   ("valid,v", "Check if the input is valid rather than repair")
   ("robustness", "Compute the robustness of the input and output")
   ("noOut", "Compute but do not print the output")
-  ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
   ;
   
   po::options_description all_options;
@@ -201,6 +201,11 @@ int main(int argc, const char *argv[]) {
       out_geometry = prepair.repair_point_set(in_geometry, time_results);
     } else {
       out_geometry = prepair.repair_odd_even(in_geometry, time_results);
+    }
+    
+    // Remove small parts
+    if (vm.count("minarea")) {
+      prepair.remove_small_parts(out_geometry, vm["minarea"].as<double>());
     }
     
     // Output results

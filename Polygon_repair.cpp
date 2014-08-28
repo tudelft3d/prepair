@@ -693,17 +693,28 @@ OGRGeometry *Polygon_repair::reconstruct() {
   return out_geometries;
 }
 
-void remove_small_parts(OGRGeometry *geometry, double min_area) {
+bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) {
   switch (geometry->getGeometryType()) {
+    case wkbLineString: {
+      OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
+      if (ring->get_Area() < min_area) {
+        delete geometry;
+        geometry = new OGRLinearRing();
+        return true;
+      } break;
+    }
+    
     case wkbPolygon: {
       OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
-      if (polygon->getExteriorRing()->get_Area() < min_area) {
-        polygon->empty();
-        return;
-      } OGRPolygon *new_polygon = new OGRPolygon();
+      if (polygon->get_Area() < min_area) {
+        delete geometry;
+        geometry = new OGRPolygon();
+        return true;
+      } CGAL_assertion(polygon->getExteriorRing()->get_Area() >= min_area);
+      OGRPolygon *new_polygon = new OGRPolygon();
       new_polygon->addRing(polygon->getExteriorRing());
       for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
-        if (polygon->getInteriorRing(currentRing)->get_Area() >= min_area) {
+        if (!remove_small_parts(polygon->getInteriorRing(currentRing), min_area)) {
           new_polygon->addRing(polygon->getInteriorRing(currentRing));
         }
       } delete geometry;
@@ -713,19 +724,28 @@ void remove_small_parts(OGRGeometry *geometry, double min_area) {
       
     case wkbMultiPolygon: {
       OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(geometry);
-      for (int current_polygon = multipolygon->getNumGeometries()-1; current_polygon > 0; --current_polygon) {
-        remove_small_parts(multipolygon->getGeometryRef(current_polygon), current_polygon);
-        if (static_cast<OGRPolygon *>(multipolygon->getGeometryRef(current_polygon))->get_Area() < min_area) {
-          multipolygon->removeGeometry(current_polygon);
+      if (multipolygon->get_Area() < min_area) {
+        multipolygon->empty();
+        delete geometry;
+        geometry = new OGRMultiPolygon();
+        return true;
+      } OGRMultiPolygon *new_multipolygon = new OGRMultiPolygon();
+      for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
+        if (!remove_small_parts(multipolygon->getGeometryRef(current_polygon), current_polygon)) {
+          new_multipolygon->addGeometry(multipolygon->getGeometryRef(current_polygon));
         }
-      } break;
+      } delete geometry;
+      geometry = new_multipolygon;
+      break;
     }
       
     default:
       std::cerr << "Error: Input type not supported" << std::endl;
-      return;
+      return true;
       break;
   }
+  
+  return false;
 }
 
 void Polygon_repair::get_boundary(Triangulation::Face_handle face, int edge, std::list<Triangulation::Vertex_handle> &out_vertices) {
