@@ -339,10 +339,13 @@ void Polygon_repair::tag_odd_even() {
 void Polygon_repair::tag_point_set_difference(std::list<OGRGeometry *> &geometries) {
   if (geometries.size() == 0) return;
   std::list<OGRGeometry *>::iterator current_geometry = geometries.begin();
+  validate_edge_counts();
   tag_as_to_add(*current_geometry);
+  validate_edge_counts();
   ++current_geometry;
   while (current_geometry != geometries.end()) {
     tag_as_to_subtract(*current_geometry);
+    validate_edge_counts();
     ++current_geometry;
   } tag_based_on_edge_counts();
 }
@@ -356,27 +359,57 @@ void Polygon_repair::tag_point_set_union(std::list<OGRGeometry *> &geometries) {
 void Polygon_repair::tag_based_on_edge_counts() {
   for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
     current_face->info().clear();
-//    std::cout << "Counts: " << int(current_face->halfedge_info(0).count()) << " " << int(current_face->halfedge_info(1).count()) << " " << int(current_face->halfedge_info(2).count()) << std::endl;
+  }
+  
+//  std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
+//  triangulation.infinite_face()->info().is_in_interior(false);
+//  triangulation.infinite_face()->info().been_tagged(true);
+//  to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
+//  while (to_tag.size() > 0) {
+//    CGAL_assertion(to_tag.front().first->info().been_tagged());
+//    for (int neighbour = 0; neighbour < 3; ++neighbour) {
+//      int index_in_neighbour;
+//      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
+//      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
+//      char count = to_tag.front().first->halfedge_info(neighbour).count()+to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
+//      if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
+//        if (to_tag.front().second+count >= 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+//        else CGAL_assertion(!to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+//      } else {
+//        to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
+//        if (to_tag.front().second+count >= 0) to_tag.front().first->neighbor(neighbour)->info().is_in_interior(true);
+//        else to_tag.front().first->neighbor(neighbour)->info().is_in_interior(false);
+//        to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
+//      }
+//    } to_tag.pop_front();
+//  }
+}
+
+void Polygon_repair::validate_edge_counts() {
+  for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
+    current_face->info().clear();
   }
   
   std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
-  triangulation.infinite_face()->info().is_in_interior(false);
   triangulation.infinite_face()->info().been_tagged(true);
+  triangulation.infinite_face()->info().count = 0;
   to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
   while (to_tag.size() > 0) {
+//    std::cout << "Triangle(" << to_tag.front().first->vertex(0)->point() << ", " << to_tag.front().first->vertex(1)->point() << ", " << to_tag.front().first->vertex(2)->point() << "): " << int(to_tag.front().second) << std::endl;
     CGAL_assertion(to_tag.front().first->info().been_tagged());
     for (int neighbour = 0; neighbour < 3; ++neighbour) {
+//      std::cout << "\tTriangle(" << to_tag.front().first->neighbor(neighbour)->vertex(0)->point() << ", " << to_tag.front().first->neighbor(neighbour)->vertex(1)->point() << ", " << to_tag.front().first->neighbor(neighbour)->vertex(2)->point() << "): ";
       int index_in_neighbour;
       CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
       CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
-      char count = to_tag.front().first->halfedge_info(neighbour).count()+to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
+      char count = to_tag.front().first->halfedge_info(neighbour).count() - to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
       if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
-        if (to_tag.front().second+count >= 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
-        else CGAL_assertion(!to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+//        std::cout << "checked " << int(to_tag.front().second+count) << " == " << int(to_tag.front().first->neighbor(neighbour)->info().count) << std::endl;
+        CGAL_assertion(to_tag.front().second+count == to_tag.front().first->neighbor(neighbour)->info().count);
       } else {
+//        std::cout << "assigned " << to_tag.front().second+count << std::endl;
         to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
-        if (to_tag.front().second+count >= 0) to_tag.front().first->neighbor(neighbour)->info().is_in_interior(true);
-        else to_tag.front().first->neighbor(neighbour)->info().is_in_interior(false);
+        to_tag.front().first->neighbor(neighbour)->info().count = to_tag.front().second+count;
         to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
       }
     } to_tag.pop_front();
@@ -390,7 +423,6 @@ void Polygon_repair::tag_as_to_add(OGRGeometry *geometry) {
       
     case wkbLineString: {
       OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
-      ring->closeRings();
 #ifdef COORDS_3D
       vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
 #else
@@ -416,9 +448,11 @@ void Polygon_repair::tag_as_to_add(OGRGeometry *geometry) {
       
     case wkbPolygon: {
       OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
+      CGAL_precondition(!polygon->getExteriorRing()->isClockwise());
       tag_as_to_add(polygon->getExteriorRing());
       for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
-        tag_as_to_subtract(polygon->getInteriorRing(current_ring));
+        CGAL_precondition(polygon->getInteriorRing(current_ring)->isClockwise());
+        tag_as_to_add(polygon->getInteriorRing(current_ring));
       } break;
     }
       
@@ -456,7 +490,6 @@ void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
       
     case wkbLineString: {
       OGRLinearRing *ring = static_cast<OGRLinearRing *>(geometry);
-      ring->closeRings();
 #ifdef COORDS_3D
       vb = triangulation.insert(Point(ring->getX(0), ring->getY(0), ring->getZ(0)), walk_start_location);
 #else
@@ -482,9 +515,11 @@ void Polygon_repair::tag_as_to_subtract(OGRGeometry *geometry) {
       
     case wkbPolygon: {
       OGRPolygon *polygon = static_cast<OGRPolygon *>(geometry);
+      CGAL_precondition(!polygon->getExteriorRing()->isClockwise());
       tag_as_to_subtract(polygon->getExteriorRing());
       for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) {
-        tag_as_to_add(polygon->getInteriorRing(current_ring));
+        CGAL_precondition(polygon->getInteriorRing(current_ring)->isClockwise());
+        tag_as_to_subtract(polygon->getInteriorRing(current_ring));
       } break;
     }
       

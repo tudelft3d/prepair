@@ -26,10 +26,12 @@ class Triangle_info {
 public:
   Triangle_info() {
     info = 0x00;
+    count = 0;
   }
   
   void clear() {
     info = 0x00;
+    count = 0;
   }
   
   bool been_tagged() {
@@ -58,6 +60,8 @@ public:
     if (reconstructed) info |= 0x08;
     else info &= 0xf7;
   }
+  
+  char count;
   
 private:
   unsigned char info;

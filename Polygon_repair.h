@@ -42,11 +42,10 @@ private:
   void insert_all_constraints(OGRGeometry *in_geometry);
   void insert_odd_even_constraints(OGRGeometry *in_geometry);
   void tag_odd_even();
-  void tag_odd_even(Triangulation::Face_handle face, bool is_in);
   void tag_point_set_difference(std::list<OGRGeometry *> &geometries);
   void tag_point_set_union(std::list<OGRGeometry *> &geometries);
   void tag_based_on_edge_counts();
-  void tag_based_on_edge_counts(Triangulation::Face_handle face, char count);
+  void validate_edge_counts();
   void tag_as_to_add(OGRGeometry *geometry);
   void tag_as_to_subtract(OGRGeometry *geometry);
   void tag_as_to_add(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb);
