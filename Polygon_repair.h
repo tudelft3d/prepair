@@ -45,7 +45,6 @@ private:
   void tag_point_set_difference(std::list<OGRGeometry *> &geometries);
   void tag_point_set_union(std::list<OGRGeometry *> &geometries);
   void tag_based_on_edge_counts();
-  void validate_edge_counts();
   void tag_as_to_add(OGRGeometry *geometry);
   void tag_as_to_subtract(OGRGeometry *geometry);
   void tag_as_to_add(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb);

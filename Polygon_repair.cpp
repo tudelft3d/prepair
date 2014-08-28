@@ -360,7 +360,7 @@ void Polygon_repair::tag_based_on_edge_counts() {
   
   std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
   triangulation.infinite_face()->info().been_tagged(true);
-  triangulation.infinite_face()->info().count = 0;
+  triangulation.infinite_face()->info().is_in_interior(false);
   to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
   while (to_tag.size() > 0) {
     CGAL_assertion(to_tag.front().first->info().been_tagged());
@@ -370,41 +370,12 @@ void Polygon_repair::tag_based_on_edge_counts() {
       CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
       char count = to_tag.front().first->halfedge_info(neighbour).count() - to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
       if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
-        CGAL_assertion(to_tag.front().second+count == to_tag.front().first->neighbor(neighbour)->info().count);
+        if (to_tag.front().second+count > 0) CGAL_assertion(to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
+        else CGAL_assertion(!to_tag.front().first->neighbor(neighbour)->info().is_in_interior());
       } else {
         to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
-        to_tag.front().first->neighbor(neighbour)->info().count = to_tag.front().second+count;
-        to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
-      }
-    } to_tag.pop_front();
-  }
-}
-
-void Polygon_repair::validate_edge_counts() {
-  for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
-    current_face->info().clear();
-  }
-  
-  std::list<std::pair<Triangulation::Face_handle, char> > to_tag;
-  triangulation.infinite_face()->info().been_tagged(true);
-  triangulation.infinite_face()->info().count = 0;
-  to_tag.push_back(std::pair<Triangulation::Face_handle, char>(triangulation.infinite_face(), 0));
-  while (to_tag.size() > 0) {
-//    std::cout << "Triangle(" << to_tag.front().first->vertex(0)->point() << ", " << to_tag.front().first->vertex(1)->point() << ", " << to_tag.front().first->vertex(2)->point() << "): " << int(to_tag.front().second) << std::endl;
-    CGAL_assertion(to_tag.front().first->info().been_tagged());
-    for (int neighbour = 0; neighbour < 3; ++neighbour) {
-//      std::cout << "\tTriangle(" << to_tag.front().first->neighbor(neighbour)->vertex(0)->point() << ", " << to_tag.front().first->neighbor(neighbour)->vertex(1)->point() << ", " << to_tag.front().first->neighbor(neighbour)->vertex(2)->point() << "): ";
-      int index_in_neighbour;
-      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->has_neighbor(to_tag.front().first, index_in_neighbour));
-      CGAL_assertion(to_tag.front().first->neighbor(neighbour)->neighbor(index_in_neighbour) == to_tag.front().first);
-      char count = to_tag.front().first->halfedge_info(neighbour).count() - to_tag.front().first->neighbor(neighbour)->halfedge_info(index_in_neighbour).count();
-      if (to_tag.front().first->neighbor(neighbour)->info().been_tagged()) {
-//        std::cout << "checked " << int(to_tag.front().second+count) << " == " << int(to_tag.front().first->neighbor(neighbour)->info().count) << std::endl;
-        CGAL_assertion(to_tag.front().second+count == to_tag.front().first->neighbor(neighbour)->info().count);
-      } else {
-//        std::cout << "assigned " << to_tag.front().second+count << std::endl;
-        to_tag.front().first->neighbor(neighbour)->info().been_tagged(true);
-        to_tag.front().first->neighbor(neighbour)->info().count = to_tag.front().second+count;
+        if (to_tag.front().second+count > 0) to_tag.front().first->neighbor(neighbour)->info().is_in_interior(true);
+        else to_tag.front().first->neighbor(neighbour)->info().is_in_interior(false);
         to_tag.push_back(std::pair<Triangulation::Face_handle, char>(to_tag.front().first->neighbor(neighbour), to_tag.front().second+count));
       }
     } to_tag.pop_front();
