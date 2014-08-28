@@ -35,6 +35,7 @@ int main(int argc, const char *argv[]) {
   po::options_description advanced_options("Advanced options");
   advanced_options.add_options()
   ("time,t", "Benchmark the different stages of the process")
+  ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
   ("shpOut", po::value<std::string>()->value_name("PATH"), "Output to a shapefile")
   ;
   po::options_description hidden_options("Hidden options");
@@ -42,7 +43,6 @@ int main(int argc, const char *argv[]) {
   ("valid,v", "Check if the input is valid rather than repair")
   ("robustness", "Compute the robustness of the input and output")
   ("noOut", "Compute but do not print the output")
-  ("setdiff", "Uses the point set paradigm (default: odd-even paradigm)")
   ("minarea", po::value<double>()->value_name("AREA"), "Only output polygons larger than AREA")
   ;
   
