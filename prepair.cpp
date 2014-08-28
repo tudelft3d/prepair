@@ -103,7 +103,7 @@ int main(int argc, const char *argv[]) {
   }
   
   else if (vm.count("wktfile")) {
-    in_file.open(vm["wktfile"].as<std::string>(), std::ios::in);
+    in_file.open(vm["wktfile"].as<std::string>().c_str(), std::ios::in);
     if (!in_file.is_open()) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
