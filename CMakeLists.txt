@@ -47,10 +47,10 @@ endif()
 include( ${CGAL_USE_FILE} )
 
 # Boost
-find_package( Boost REQUIRED COMPONENTS program_options)
+find_package( Boost 1.50.0 REQUIRED COMPONENTS program_options)
 
 if ( NOT Boost_FOUND )
-  message(SEND_ERROR "prepair requires the Boost library")
+  message(SEND_ERROR "prepair requires the Boost library version 1.50 or higher")
   return()  
 endif()
 
