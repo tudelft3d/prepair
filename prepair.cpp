@@ -221,6 +221,7 @@ void usage() {
   std::cout << "--minarea AREA Only output polygons larger than AREA" << std::endl;
   std::cout << "--isr GRIDSIZE Snap round the input before repairing" << std::endl;
   std::cout << "--time         Benchmark the different stages of the process" << std::endl;
+  std::cout << "--shpOut       Output a shapefile (out.shp) instead of a WKT" << std::endl;
   
 }
 
