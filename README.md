@@ -65,7 +65,7 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or an OGR dataset (shapefi
 
 [Snap rounding](http://www.cgal.org/Manual/latest/doc_html/cgal_manual/Snap_rounding_2/Chapter_main.html) of the input segments can be performed with the --isr option:
 
-    $ /prepair --isr 2 --wkt "POLYGON((0 0, 10 0, 15 5, 10 0, 10 10, 0 10, 0 0))"
+    $ ./prepair --isr 2 --wkt "POLYGON((0 0, 10 0, 15 5, 10 0, 10 10, 0 10, 0 0))"
     MULTIPOLYGON (((11 1,11 11,1 11,1 1,11 1)))
     
 
