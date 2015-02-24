@@ -710,7 +710,8 @@ bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) 
         delete geometry;
         geometry = new OGRPolygon();
         return true;
-      } CGAL_assertion(polygon->getExteriorRing()->get_Area() >= min_area);
+      } 
+      CGAL_assertion(polygon->getExteriorRing()->get_Area() >= min_area);
       OGRPolygon *new_polygon = new OGRPolygon();
       new_polygon->addRing(polygon->getExteriorRing());
       for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
