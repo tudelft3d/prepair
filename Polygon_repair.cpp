@@ -732,7 +732,7 @@ bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) 
         return true;
       } OGRMultiPolygon *new_multipolygon = new OGRMultiPolygon();
       for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
-        if (!remove_small_parts(multipolygon->getGeometryRef(current_polygon), current_polygon)) {
+        if (!remove_small_parts(multipolygon->getGeometryRef(current_polygon), min_area)) {
           new_multipolygon->addGeometry(multipolygon->getGeometryRef(current_polygon));
         }
       } delete geometry;
