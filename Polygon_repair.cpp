@@ -693,6 +693,7 @@ OGRGeometry *Polygon_repair::reconstruct() {
   return out_geometries;
 }
 
+
 bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) {
   switch (geometry->getGeometryType()) {
     case wkbLineString: {
@@ -701,7 +702,8 @@ bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) 
         delete geometry;
         geometry = new OGRLinearRing();
         return true;
-      } break;
+      }
+      break;
     }
     
     case wkbPolygon: {
@@ -718,7 +720,8 @@ bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) 
         if (!remove_small_parts(polygon->getInteriorRing(currentRing), min_area)) {
           new_polygon->addRing(polygon->getInteriorRing(currentRing));
         }
-      } delete geometry;
+      }
+      delete geometry;
       geometry = new_polygon;
       break;
     }
@@ -730,12 +733,17 @@ bool Polygon_repair::remove_small_parts(OGRGeometry *geometry, double min_area) 
         delete geometry;
         geometry = new OGRMultiPolygon();
         return true;
-      } OGRMultiPolygon *new_multipolygon = new OGRMultiPolygon();
+      }
+      OGRMultiPolygon *new_multipolygon = new OGRMultiPolygon();
       for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
         if (!remove_small_parts(multipolygon->getGeometryRef(current_polygon), min_area)) {
-          new_multipolygon->addGeometry(multipolygon->getGeometryRef(current_polygon));
+          OGRGeometry *temp;
+          temp = multipolygon->getGeometryRef(current_polygon);
+          new_multipolygon->addGeometry(temp);
+//          new_multipolygon->addGeometryDirectly(multipolygon->getGeometryRef(current_polygon));
         }
-      } delete geometry;
+      }
+      delete geometry;
       geometry = new_multipolygon;
       break;
     }
