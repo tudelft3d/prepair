@@ -21,7 +21,7 @@ Note that prepair is only concerned with single polygons, and if you're interest
 
 Details of how we automatically repair broken polygons, and what results you can expect, are available in this scientific article:
 
-> Ledoux, H., Arroyo Ohori, K., and Meijers, M. (2014). A triangulation-based approach to automatically repair GIS polygons. *Computers & Geosciences* 66:121–131. [ [DOI] ](http://dx.doi.org/10.1016/j.cageo.2014.01.009) [ [PDF] ](http://3dgeoinfo.bk.tudelft.nl/hledoux/pdfs/14cgeo_prepair.pdf)
+> Ledoux, H., Arroyo Ohori, K., and Meijers, M. (2014). A triangulation-based approach to automatically repair GIS polygons. *Computers & Geosciences* 66:121–131. [ [DOI] ](http://dx.doi.org/10.1016/j.cageo.2014.01.009) [ [PDF] ](http://3dgeoinfo.bk.tudelft.nl/hledoux/pdfs/14_cgeo_prepair.pdf)
 
 If you use prepair for a scientific project, please cite this article.
 
