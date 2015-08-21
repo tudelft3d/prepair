@@ -32,7 +32,7 @@
 #include "TriangleInfo.h"
 
 // OGR
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 
 // STL
 #include <fstream>
