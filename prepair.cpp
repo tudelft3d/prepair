@@ -132,8 +132,13 @@ int main (int argc, const char * argv[]) {
     
     //-- reading from a ogr dataset (most supported: shp, geojson, gml, etc)
     else if (strcmp(argv[argNum], "--ogr") == 0) {
+#if GDAL_VERSION_MAJOR < 2
       OGRRegisterAll();
       OGRDataSource *dataSource = OGRSFDriverRegistrar::Open(argv[argNum+1], false);
+#else
+      GDALAllRegister();
+      GDALDataset *dataSource = (GDALDataset*) GDALOpenEx(argv[argNum+1], GDAL_OF_READONLY, NULL, NULL, NULL);
+#endif
       ++argNum;
       if (dataSource == NULL) {
         std::cerr << "Error: Could not open file." << std::endl;
