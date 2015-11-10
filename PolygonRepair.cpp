@@ -165,22 +165,44 @@ double PolygonRepair::computeRobustness(OGRGeometry *geometry) {
 
 bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {
   const char *driverName = "ESRI Shapefile";
+#if GDAL_VERSION_MAJOR < 2
   OGRRegisterAll();
 	OGRSFDriver *driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(driverName);
+#else
+  GDALAllRegister();
+	GDALDriver *driver = GetGDALDriverManager()->GetDriverByName(driverName);
+#endif
 	if (driver == NULL) {
 		std::cout << "\tError: OGR Shapefile driver not found." << std::endl;
 		return false;
 	}
+
+#if GDAL_VERSION_MAJOR < 2
 	OGRDataSource *dataSource = driver->Open(fileName, false);
+#else
+	GDALDataset *dataSource = (GDALDataset*) GDALOpenEx(fileName, GDAL_OF_READONLY, NULL, NULL, NULL);
+#endif
 	if (dataSource != NULL) {
 		std::cout << "\tOverwriting file..." << std::endl;
+#if GDAL_VERSION_MAJOR < 2
 		if (driver->DeleteDataSource(dataSource->GetName())!= OGRERR_NONE) {
+#else
+		if (driver->Delete(fileName)!= CE_None) {
+#endif
 			std::cout << "\tError: Couldn't erase file with same name." << std::endl;
 			return false;
+#if GDAL_VERSION_MAJOR < 2
 		} OGRDataSource::DestroyDataSource(dataSource);
+#else
+		} GDALClose(dataSource);
+#endif
 	}
 	std::cout << "\tCreating " << fileName << std::endl;
+#if GDAL_VERSION_MAJOR < 2
 	dataSource = driver->CreateDataSource(fileName, NULL);
+#else
+	dataSource = driver->Create(fileName,0,0,0,GDT_Unknown,NULL);
+#endif
 	if (dataSource == NULL) {
 		std::cout << "\tError: Could not create file." << std::endl;
 		return false;
@@ -197,7 +219,11 @@ bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {
     std::cout << "\tError: Could not create feature." << std::endl;
   }
   OGRFeature::DestroyFeature(feature);
+#if GDAL_VERSION_MAJOR < 2
   OGRDataSource::DestroyDataSource(dataSource);
+#else
+  GDALClose(dataSource);
+#endif
   return true;
 }
 
