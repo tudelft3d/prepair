@@ -65,6 +65,10 @@ endif()
 
 include_directories( ${GDAL_INCLUDE_DIR} )
 
+# Hardening buildflags
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} $ENV{CXXFLAGS}")
+set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} $ENV{LDFLAGS}")
+
 # Creating entries for target: prepair
 # ############################
 
