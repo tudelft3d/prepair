@@ -23,7 +23,7 @@
 // * if the code crashes, try to compile with EXACT_CONSTRUCTIONS so that
 //   robust arithmetic is used
 
-#define EXACT_CONSTRUCTIONS
+//#define EXACT_CONSTRUCTIONS
 //#define COORDS_3D
 
 #ifndef DEFINITIONS_H
@@ -36,7 +36,7 @@
 #include <fstream>
 
 // OGR
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 
 // CGAL
 #ifdef EXACT_CONSTRUCTIONS
