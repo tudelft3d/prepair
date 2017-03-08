@@ -63,8 +63,13 @@ int main(int argc, const char *argv[]) {
   std::clock_t start_time = clock();
   bool time_results = false;
   
+  #if GDAL_VERSION_MAJOR < 2
+    OGRDataSource *in_dataset;
+  #else
+    GDALDataset *in_dataset;
+  #endif
+
   OGRGeometry *in_geometry;
-  GDALDataset *in_dataset;
   OGRLayer *in_data_layer;
   OGRFeature *in_feature;
   std::ifstream in_file;
@@ -114,8 +119,13 @@ int main(int argc, const char *argv[]) {
   
 //-- OGR file (attributes are preserved)
   else if (vm.count("ogr")) {
+  #if GDAL_VERSION_MAJOR < 2
+    OGRRegisterAll();
+    in_dataset = OGRSFDriverRegistrar::Open(vm["ogr"].as<std::string>().c_str(), false);
+  #else
     GDALAllRegister();
     in_dataset = (GDALDataset *)GDALOpenEx(vm["ogr"].as<std::string>().c_str(), GDAL_OF_VECTOR, NULL, NULL, NULL);
+  #endif
     if (in_dataset == NULL) {
       std::cerr << "Error: Could not open file" << std::endl;
       return 1;
@@ -137,30 +147,59 @@ int main(int argc, const char *argv[]) {
   }
   
 //-- start the work
-  GDALDriver *out_driver;
-  GDALDataset *out_dataset;
+#if GDAL_VERSION_MAJOR < 2
+  OGRSFDriver   *out_driver;
+  OGRDataSource *out_dataset;
+  OGRRegisterAll();
+#else
+  GDALDriver    *out_driver;
+  GDALDataset   *out_dataset;
+  GDALAllRegister();
+#endif
   OGRLayer *out_layer;
   OGRFeatureDefn *out_f_defn;
   if (vm.count("shpOut")) {
     const char *out_driver_name = "ESRI Shapefile";
-    GDALAllRegister();
+  #if GDAL_VERSION_MAJOR < 2
+    out_driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(out_driver_name);
+  #else
     out_driver = GetGDALDriverManager()->GetDriverByName(out_driver_name);
+  #endif
     if (out_driver == NULL) {
       std::cout << "Error: OGR Shapefile driver not found." << std::endl;
       return false;
     } 
+
+  #if GDAL_VERSION_MAJOR < 2
+    out_dataset = out_driver->Open(vm["shpOut"].as<std::string>().c_str(), false);
+  #else
     out_dataset = out_driver->Create(vm["shpOut"].as<std::string>().c_str(), 0, 0, 0, GDT_Unknown, NULL);
+  #endif
+
     if (out_dataset != NULL) {
       std::cout << "Overwriting " << vm["shpOut"].as<std::string>() << "..." << std::endl;
+    #if GDAL_VERSION_MAJOR < 2
+      if (out_driver->DeleteDataSource(out_dataset->GetName())!= OGRERR_NONE) {
+    #else
       if (out_driver->Delete(vm["shpOut"].as<std::string>().c_str())!= OGRERR_NONE) {
+    #endif
         std::cout << "Error: Couldn't erase file with same name." << std::endl;
         return false;
-      } GDALClose(out_dataset);
+      }
+    #if GDAL_VERSION_MAJOR < 2
+      OGRDataSource::DestroyDataSource(out_dataset);
+    #else
+      GDALClose(out_dataset);
+    #endif 
     } 
     else {
       std::cout << "Creating " << vm["shpOut"].as<std::string>() << "..." << std::endl;
     } 
+  #if GDAL_VERSION_MAJOR < 2
+    out_dataset = out_driver->CreateDataSource(vm["shpOut"].as<std::string>().c_str(), NULL);
+  #else
     out_dataset = out_driver->Create(vm["shpOut"].as<std::string>().c_str(), 0, 0, 0, GDT_Unknown, NULL);
+  #endif
     if (out_dataset == NULL) {
       std::cout << "Error: Could not create file." << std::endl;
       return false;
@@ -197,7 +236,11 @@ int main(int argc, const char *argv[]) {
     else if (vm.count("ogr")) {
       in_feature = in_data_layer->GetNextFeature();
       if (in_feature == NULL) {
+      #if GDAL_VERSION_MAJOR < 2
+        OGRDataSource::DestroyDataSource(in_dataset);
+      #else
         GDALClose(in_dataset);
+      #endif
         break;
       } 
       in_geometry = in_feature->GetGeometryRef();
@@ -261,7 +304,11 @@ int main(int argc, const char *argv[]) {
   }
   
   if (vm.count("shpOut")) {
+  #if GDAL_VERSION_MAJOR < 2
+    OGRDataSource::DestroyDataSource(out_dataset);
+  #else
     GDALClose(out_dataset);
+  #endif
   }
   
   // Time results
