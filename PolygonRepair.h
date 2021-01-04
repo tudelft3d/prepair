@@ -33,7 +33,8 @@ public:
   
 private:
   Triangulation triangulation;
-  
+
+  Triangulation::Constraint_id getConstraint(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb);
   void insertConstraints(Triangulation &triangulation, OGRGeometry *geometry, bool removeOverlappingConstraints = true);
   void tagOddEven(Triangulation &triangulation);
   void tagPointSet(Triangulation &triangulation, std::list<std::pair<bool, OGRMultiPolygon *> > &geometries);

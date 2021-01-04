@@ -227,6 +227,11 @@ bool PolygonRepair::saveToShp(OGRGeometry* geometry, const char *fileName) {
   return true;
 }
 
+Triangulation::Constraint_id PolygonRepair::getConstraint(Triangulation::Vertex_handle va, Triangulation::Vertex_handle vb) {
+  assert (triangulation.number_of_enclosing_constraints(va, vb) == 1);
+  return triangulation.context(va, vb).id();
+}
+
 void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry* geometry, bool removeOverlappingConstraints) {
   Triangulation::Vertex_handle va, vb;
   Triangulation::Face_handle faceOfEdge;
@@ -247,8 +252,9 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         if (va == vb) continue;
         if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
           if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-            triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint
-            triangulation.remove_constraint(va, vb);
+            Triangulation::Constraint_id constraint
+              = triangulation.insert_constraint(va, vb); // trick to remove a partially overlapping constraint
+            triangulation.remove_constraint(constraint);
           } else triangulation.insert_constraint(va, vb);
         } else triangulation.insert_constraint(va, vb);
       } break;
@@ -268,8 +274,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
         if (va == vb) continue;
         if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
           if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-            triangulation.insert_constraint(va, vb);
-            triangulation.remove_constraint(va, vb);
+            Triangulation::Constraint_id constraint = triangulation.insert_constraint(va, vb);
+            triangulation.remove_constraint(constraint);
             //std::cout << "Removing constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
           } else {
             triangulation.insert_constraint(va, vb);
@@ -294,8 +300,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
           if (va == vb) continue;
           if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
             if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-              triangulation.insert_constraint(va, vb);
-              triangulation.remove_constraint(va, vb);
+              Triangulation::Constraint_id constraint = triangulation.insert_constraint(va, vb);
+              triangulation.remove_constraint(constraint);
               //std::cout << "Removing constraint <" << va->point() << ", " << vb->point() << ">" << std::endl;
             } else {
               triangulation.insert_constraint(va, vb);
@@ -327,12 +333,12 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
           if (va == vb) continue;
           if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
             if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-              triangulation.insert_constraint(va, vb);
-              triangulation.remove_constraint(va, vb);
+              Triangulation::Constraint_id constraint = triangulation.insert_constraint(va, vb);
+              triangulation.remove_constraint(constraint);
             } else triangulation.insert_constraint(va, vb);
           } else triangulation.insert_constraint(va, vb);
         }
-        
+
         // Inner
         for (int currentRing = 0; currentRing < polygon->getNumInteriorRings(); ++currentRing) {
           polygon->getInteriorRing(currentRing)->closeRings();
@@ -346,8 +352,8 @@ void PolygonRepair::insertConstraints(Triangulation &triangulation, OGRGeometry*
             if (va == vb) continue;
             if (removeOverlappingConstraints && triangulation.is_edge(va, vb, faceOfEdge, indexOfEdge)) {
               if (triangulation.is_constrained(std::pair<Triangulation::Face_handle, int>(faceOfEdge, indexOfEdge))) {
-                triangulation.insert_constraint(va, vb);
-                triangulation.remove_constraint(va, vb);
+                Triangulation::Constraint_id constraint = triangulation.insert_constraint(va, vb);
+                triangulation.remove_constraint(constraint);
               } else triangulation.insert_constraint(va, vb);
             } else triangulation.insert_constraint(va, vb);
           }
@@ -448,10 +454,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
         vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                         polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
         if (va->point() == vb->point()) continue;
-        currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+        currentVertex = triangulation.vertices_in_constraint_begin(getConstraint(va, vb));
         nextVertex = currentVertex;
         ++nextVertex;
-        lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+        lastVertex = triangulation.vertices_in_constraint_end(getConstraint(va, vb));
         if (*currentVertex == va) sameOrder = true;
         else sameOrder = false;
         while (nextVertex != lastVertex) {
@@ -480,10 +486,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
           vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                           polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
           if (va->point() == vb->point()) continue;
-          currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+          currentVertex = triangulation.vertices_in_constraint_begin(getConstraint(va, vb));
           nextVertex = currentVertex;
           ++nextVertex;
-          lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+          lastVertex = triangulation.vertices_in_constraint_end(getConstraint(va, vb));
           if (*currentVertex == va) sameOrder = true;
           else sameOrder = false;
           while (nextVertex != lastVertex) {
@@ -543,10 +549,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
         vb = triangulation.insert(Point(polygon->getExteriorRing()->getX((currentPoint+1)%polygon->getExteriorRing()->getNumPoints()),
                                         polygon->getExteriorRing()->getY((currentPoint+1)%polygon->getExteriorRing()->getNumPoints())));
         if (va->point() == vb->point()) continue;
-        currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+        currentVertex = triangulation.vertices_in_constraint_begin(getConstraint(va, vb));
         nextVertex = currentVertex;
         ++nextVertex;
-        lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+        lastVertex = triangulation.vertices_in_constraint_end(getConstraint(va, vb));
         if (*currentVertex == va) sameOrder = true;
         else sameOrder = false;
         while (nextVertex != lastVertex) {
@@ -579,10 +585,10 @@ void PolygonRepair::tagPointSet(Triangulation &triangulation, std::list<std::pai
           vb = triangulation.insert(Point(polygon->getInteriorRing(currentRing)->getX((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints()),
                                           polygon->getInteriorRing(currentRing)->getY((currentPoint+1)%polygon->getInteriorRing(currentRing)->getNumPoints())));
           if (va->point() == vb->point()) continue;
-          currentVertex = triangulation.vertices_in_constraint_begin(va, vb);
+          currentVertex = triangulation.vertices_in_constraint_begin(getConstraint(va, vb));
           nextVertex = currentVertex;
           ++nextVertex;
-          lastVertex = triangulation.vertices_in_constraint_end(va, vb);
+          lastVertex = triangulation.vertices_in_constraint_end(getConstraint(va, vb));
           if (*currentVertex == va) sameOrder = true;
           else sameOrder = false;
           while (nextVertex != lastVertex) {
