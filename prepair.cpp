@@ -1,6 +1,6 @@
 // prepair
 //
-// Copyright © 2009-2020,
+// Copyright © 2009-2022,
 // Ken Arroyo Ohori    k.ohori@tudelft.nl
 // Hugo Ledoux         h.ledoux@tudelft.nl
 // Martijn Meijers     b.m.meijers@tudelft.nl

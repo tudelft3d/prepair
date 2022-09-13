@@ -1,6 +1,6 @@
 // Enhanced_constrained_triangulation
 //
-// Copyright © 2016-2020,
+// Copyright © 2016-2022,
 // Ken Arroyo Ohori    k.ohori@tudelft.nl
 // All rights reserved.
 //
