@@ -22,7 +22,6 @@
 #include <iostream>
 #include <fstream>
 #include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
 #include <ogrsf_frmts.h>
 #include "Polygon_repair.h"
 
@@ -107,7 +106,7 @@ int main(int argc, const char *argv[]) {
   // Output
   if (vm.count("ogrout")) {
     GDALAllRegister();
-    boost::filesystem::path extension = boost::filesystem::path(vm["ogrout"].as<std::string>()).extension();
+    std::filesystem::path extension = std::filesystem::path(vm["ogrout"].as<std::string>()).extension();
     std::string out_driver_name;
     if (extension.compare(".csv") == 0) out_driver_name = "CSV";
     else if (extension.compare(".dxf") == 0) out_driver_name = "DXF";
@@ -127,7 +126,7 @@ int main(int argc, const char *argv[]) {
       return 1;
     }
     
-    if (boost::filesystem::exists(boost::filesystem::path(vm["ogrout"].as<std::string>()))) {
+    if (std::filesystem::exists(std::filesystem::path(vm["ogrout"].as<std::string>()))) {
       std::cout << "Overwriting " << out_driver_name << " file " << vm["ogrout"].as<std::string>() << "..." << std::endl;
       if (out_driver->Delete(vm["ogrout"].as<std::string>().c_str())!= OGRERR_NONE) {
         std::cerr << "Error: couldn't overwrite file" << std::endl;
