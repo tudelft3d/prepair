@@ -1,0 +1,7 @@
+# Specify filepatterns you want git to ignore.
+
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+prepair
