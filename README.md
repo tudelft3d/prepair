@@ -29,11 +29,9 @@ prepair is very easy to compile on Mac and Linux using the included CMake file. 
 2. [GDAL](http://www.gdal.org/)
 3. [CMake](http://www.cmake.org) 
 
-On Mac, a good way to install CGAL, GDAL and CMake is to use [Homebrew](http://brew.sh):
+On Mac, you can install it using [Homebrew](http://brew.sh):
 
-    $ brew install gdal
-    $ brew install cgal 
-    $ brew install cmake
+    $ brew install tudelft3d/software/prepair
 
 Once all the dependencies are met, just generate the makefile for your system and compile:
 
@@ -51,6 +49,9 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a path to a dataset (ge
     
     $ ./prepair -w 'POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))' -o myfile.gpkg
     Writing GPKG file myfile.gpkg...
+    
+    $ ./prepair -w 'POLYGON((0 0 0, 0 10 5, 10 0 10, 10 10 15, 0 0 0))'
+    MULTIPOLYGON (((0 0,5 5,0 10,0 0)),((5 5,10 0,10 10,5 5)))
 
 ## Examples of invalid input you can try
 
