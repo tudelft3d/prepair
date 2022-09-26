@@ -38,6 +38,8 @@ if ( COMMAND cmake_policy )
   cmake_policy( SET CMP0003 NEW )  
 endif()
 
+set( CMAKE_BUILD_TYPE "Release")
+
 # CGAL
 find_package( CGAL REQUIRED )
 
@@ -73,7 +75,11 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 
 add_executable( prepair prepair.cpp )
 
+set_property(TARGET prepair PROPERTY CXX_STANDARD 17)
+
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
 
 # Link to CGAL and third-party libraries
 target_link_libraries(prepair ${GDAL_LIBRARY} ${Boost_LIBRARIES})
+
+install(TARGETS prepair DESTINATION bin)
