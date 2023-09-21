@@ -89,7 +89,7 @@ public:
   }
   
   void odd_even_insert_constraint(Vertex_handle va, Vertex_handle vb) {
-    CGAL_triangulation_precondition(va != vb);
+    CGAL_precondition(va != vb);
     
 //    std::cout << "Triangulation:" << std::endl;
 //    for (typename T::All_faces_iterator current_face = T::all_faces_begin(); current_face != T::all_faces_end(); ++current_face) {
