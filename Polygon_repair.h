@@ -22,392 +22,160 @@
 #ifndef Polygon_repair_h
 #define Polygon_repair_h
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Constrained_Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_with_info_2.h>
-#include <CGAL/Triangulation_face_base_with_info_2.h>
-#include <CGAL/linear_least_squares_fitting_3.h>
-#include "Enhanced_constrained_triangulation_2.h"
+#include <list>
+#include <vector>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
-typedef CGAL::Exact_predicates_tag Tag;
-struct VertexInfo {
-  bool has_point;
-  Kernel::Point_3 point;
-  VertexInfo() {
-    has_point = false;
-    point = CGAL::ORIGIN;
-  }
-};
-struct FaceInfo {
-  bool processed;
-  bool interior;
-  FaceInfo() {
-    processed = false;
-    interior = false;
-  }
-};
-typedef CGAL::Triangulation_vertex_base_with_info_2<VertexInfo, Kernel> VertexBase;
-typedef CGAL::Constrained_triangulation_face_base_2<Kernel> FaceBase;
-typedef CGAL::Triangulation_face_base_with_info_2<FaceInfo, Kernel, FaceBase> FaceBaseWithInfo;
-typedef CGAL::Triangulation_data_structure_2<VertexBase, FaceBaseWithInfo> TriangulationDataStructure;
-typedef CGAL::Constrained_Delaunay_triangulation_2<Kernel, TriangulationDataStructure, Tag> ConstrainedDelaunayTriangulation;
-typedef Enhanced_constrained_triangulation_2<ConstrainedDelaunayTriangulation> Triangulation;
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polygon_repair/repair.h>
+#include <CGAL/linear_least_squares_fitting_3.h>
+
+using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
+using Point_2 = Kernel::Point_2;
+using Point_3 = Kernel::Point_3;
+using Plane_3 = Kernel::Plane_3;
+using Polygon_2 = CGAL::Polygon_2<Kernel>;
+using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<Kernel>;
+using Multipolygon_with_holes_2 = CGAL::Multipolygon_with_holes_2<Kernel>;
 
 struct Polygon_repair {
   OGRGeometry *geometry;
-  Triangulation::Face_handle walk_start_location;
-  Triangulation triangulation;
-  std::list<Kernel::Point_3> points_in_polygon;
-  Kernel::Plane_3 best_plane;
-  
-  void insert_points_in_list(OGRGeometry *g) {
+
+  void repair() {
+    if (!geometry || geometry->IsEmpty()) {
+      geometry = new OGRPolygon();
+      return;
+    }
+
+    const bool is_3d = geometry->Is3D();
+    if (is_3d) compute_plane();
+
+    Multipolygon_with_holes_2 cgal_input = to_cgal_multipolygon(geometry, is_3d);
+
+    Multipolygon_with_holes_2 cgal_output;
+    if (cgal_input.number_of_polygons_with_holes() > 0)
+      cgal_output = CGAL::Polygon_repair::repair(cgal_input);
+
+    OGRGeometry *new_geom = from_cgal_multipolygon(cgal_output, is_3d);
+    delete geometry;
+    geometry = new_geom;
+  }
+
+private:
+  Plane_3 best_plane;
+
+  void compute_plane() {
+    std::list<Point_3> points;
+    extract_points(geometry, points);
+    CGAL::linear_least_squares_fitting_3(
+      points.begin(), points.end(), best_plane, CGAL::Dimension_tag<0>());
+  }
+
+  static void extract_points(OGRGeometry *g, std::list<Point_3> &points) {
     switch (g->getGeometryType()) {
-        
       case wkbLineString25D: {
-        OGRLinearRing *ring = static_cast<OGRLinearRing *>(g);
+        auto *ring = static_cast<OGRLinearRing *>(g);
         ring->closeRings();
-        for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
-          points_in_polygon.push_back(Kernel::Point_3(ring->getX(current_point), ring->getY(current_point), ring->getZ(current_point)));
-        } break;
+        for (int i = 1; i < ring->getNumPoints(); ++i)
+          points.emplace_back(ring->getX(i), ring->getY(i), ring->getZ(i));
+        break;
       }
-        
       case wkbPolygon25D: {
-        OGRPolygon *polygon = static_cast<OGRPolygon *>(g);
-        insert_points_in_list(polygon->getExteriorRing());
-        for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) insert_points_in_list(polygon->getInteriorRing(current_ring));
+        auto *polygon = static_cast<OGRPolygon *>(g);
+        extract_points(polygon->getExteriorRing(), points);
+        for (int i = 0; i < polygon->getNumInteriorRings(); ++i)
+          extract_points(polygon->getInteriorRing(i), points);
         break;
       }
-        
       case wkbMultiPolygon25D: {
-        OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(g);
-        for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
-          insert_points_in_list(multipolygon->getGeometryRef(current_polygon));
-        } break;
-      }
-        
-      default:
-        std::cerr << "Error: input type << " << g->getGeometryType() << " << not supported" << std::endl;
+        auto *mp = static_cast<OGRMultiPolygon *>(g);
+        for (int i = 0; i < mp->getNumGeometries(); ++i)
+          extract_points(mp->getGeometryRef(i), points);
         break;
-        
+      }
+      default: break;
     }
   }
-  
-  void compute_plane() {
-    insert_points_in_list(geometry);
-    linear_least_squares_fitting_3(points_in_polygon.begin(), points_in_polygon.end(), best_plane, CGAL::Dimension_tag<0>());
+
+  static Point_2 point_to_2d(OGRLinearRing *ring, int i) {
+    return Point_2(ring->getX(i), ring->getY(i));
   }
-  
-  void insert_constraints_in_triangulation(OGRGeometry *g) {
+
+  Point_2 point_to_2d_projected(OGRLinearRing *ring, int i) const {
+    return best_plane.to_2d(Point_3(ring->getX(i), ring->getY(i), ring->getZ(i)));
+  }
+
+  Polygon_2 ring_to_cgal(OGRLinearRing *ring, bool is_3d) {
+    ring->closeRings();
+    Polygon_2 poly;
+    poly.reserve(ring->getNumPoints());
+    for (int i = 0; i < ring->getNumPoints(); ++i)
+      poly.push_back(is_3d ? point_to_2d_projected(ring, i) : point_to_2d(ring, i));
+    return poly;
+  }
+
+  Polygon_with_holes_2 polygon_to_cgal(OGRPolygon *polygon, bool is_3d) {
+    Polygon_2 outer = ring_to_cgal(polygon->getExteriorRing(), is_3d);
+    std::vector<Polygon_2> holes;
+    holes.reserve(polygon->getNumInteriorRings());
+    for (int i = 0; i < polygon->getNumInteriorRings(); ++i)
+      holes.push_back(ring_to_cgal(polygon->getInteriorRing(i), is_3d));
+    return Polygon_with_holes_2(std::move(outer), holes.begin(), holes.end());
+  }
+
+  Multipolygon_with_holes_2 to_cgal_multipolygon(OGRGeometry *g, bool is_3d) {
+    Multipolygon_with_holes_2 mp;
     switch (g->getGeometryType()) {
-      case wkbLineString: {
-        OGRLinearRing *ring = static_cast<OGRLinearRing *>(g);
-        ring->closeRings();
-        Triangulation::Vertex_handle va, vb;
-        vb = triangulation.insert(Kernel::Point_2(ring->getX(0), ring->getY(0)), walk_start_location);
-        walk_start_location = triangulation.incident_faces(vb);
-        for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
-          va = vb;
-          vb = triangulation.insert(Kernel::Point_2(ring->getX(current_point), ring->getY(current_point)), walk_start_location);
-          if (va != vb) triangulation.odd_even_insert_constraint(va, vb);
-          walk_start_location = triangulation.incident_faces(vb);
-        } break;
-      }
-        
-      case wkbLineString25D: {
-        OGRLinearRing *ring = static_cast<OGRLinearRing *>(g);
-        ring->closeRings();
-        Triangulation::Vertex_handle va, vb;
-        Kernel::Point_3 new_point(ring->getX(0), ring->getY(0), ring->getZ(0));
-        vb = triangulation.insert(best_plane.to_2d(new_point), walk_start_location);
-        vb->info().has_point = true;
-        vb->info().point = new_point;
-        walk_start_location = triangulation.incident_faces(vb);
-        for (int current_point = 1; current_point < ring->getNumPoints(); ++current_point) {
-          va = vb;
-          Kernel::Point_3 new_point(ring->getX(current_point), ring->getY(current_point), ring->getZ(current_point));
-          vb = triangulation.insert(best_plane.to_2d(new_point), walk_start_location);
-          vb->info().has_point = true;
-          vb->info().point = new_point;
-          if (va != vb) triangulation.odd_even_insert_constraint(va, vb);
-          walk_start_location = triangulation.incident_faces(vb);
-        } break;
-      }
-        
       case wkbPolygon:
-      case wkbPolygon25D: {
-        OGRPolygon *polygon = static_cast<OGRPolygon *>(g);
-        insert_constraints_in_triangulation(polygon->getExteriorRing());
-        for (int current_ring = 0; current_ring < polygon->getNumInteriorRings(); ++current_ring) insert_constraints_in_triangulation(polygon->getInteriorRing(current_ring));
+      case wkbPolygon25D:
+        mp.add_polygon_with_holes(polygon_to_cgal(static_cast<OGRPolygon *>(g), is_3d));
         break;
-      }
-        
       case wkbMultiPolygon:
       case wkbMultiPolygon25D: {
-        OGRMultiPolygon *multipolygon = static_cast<OGRMultiPolygon *>(g);
-        for (int current_polygon = 0; current_polygon < multipolygon->getNumGeometries(); ++current_polygon) {
-          insert_constraints_in_triangulation(multipolygon->getGeometryRef(current_polygon));
-        } break;
-      }
-        
-      default:
-        std::cerr << "Error: input type << " << g->getGeometryType() << " << not supported" << std::endl;
+        auto *multi = static_cast<OGRMultiPolygon *>(g);
+        for (int i = 0; i < multi->getNumGeometries(); ++i)
+          mp.add_polygon_with_holes(
+            polygon_to_cgal(static_cast<OGRPolygon *>(multi->getGeometryRef(i)), is_3d));
         break;
+      }
+      default: break;
     }
+    return mp;
   }
-  
-  void label_triangles() {
-    std::list<Triangulation::Face_handle> to_check;
-    triangulation.infinite_face()->info().processed = true;
-    CGAL_assertion(triangulation.infinite_face()->info().processed == true);
-    CGAL_assertion(triangulation.infinite_face()->info().interior == false);
-    to_check.push_back(triangulation.infinite_face());
-    while (!to_check.empty()) {
-      CGAL_assertion(to_check.front()->info().processed == true);
-      for (int neighbour = 0; neighbour < 3; ++neighbour) {
-        if (to_check.front()->neighbor(neighbour)->info().processed == true) {
-          // Note: validation code.
-//          if (triangulation.is_constrained(Triangulation::Edge(to_check.front(), neighbour))) CGAL_assertion(to_check.front()->neighbor(neighbour)->info().interior != to_check.front()->info().interior);
-//          else CGAL_assertion(to_check.front()->neighbor(neighbour)->info().interior == to_check.front()->info().interior);
-        } else {
-          to_check.front()->neighbor(neighbour)->info().processed = true;
-          CGAL_assertion(to_check.front()->neighbor(neighbour)->info().processed == true);
-          if (triangulation.is_constrained(Triangulation::Edge(to_check.front(), neighbour))) {
-            to_check.front()->neighbor(neighbour)->info().interior = !to_check.front()->info().interior;
-            to_check.push_back(to_check.front()->neighbor(neighbour));
-          } else {
-            to_check.front()->neighbor(neighbour)->info().interior = to_check.front()->info().interior;
-            to_check.push_back(to_check.front()->neighbor(neighbour));
-          }
-        }
-      } to_check.pop_front();
-    }
-  }
-  
-  void get_boundary(Triangulation::Face_handle face, int edge, std::list<Triangulation::Vertex_handle> &out_vertices) {
-    // Check clockwise edge
-    if (face->neighbor(face->cw(edge))->info().interior && !face->neighbor(face->cw(edge))->info().processed) {
-      face->neighbor(face->cw(edge))->info().processed = true;
-      std::list<Triangulation::Vertex_handle> v1;
-      get_boundary(face->neighbor(face->cw(edge)), face->neighbor(face->cw(edge))->index(face), v1);
-      out_vertices.splice(out_vertices.end(), v1);
-    }
-    
-    // Add central vertex
-    out_vertices.push_back(face->vertex(edge));
-    
-    // Check counterclockwise edge
-    if (face->neighbor(face->ccw(edge))->info().interior && !face->neighbor(face->ccw(edge))->info().processed) {
-      face->neighbor(face->ccw(edge))->info().processed = true;
-      std::list<Triangulation::Vertex_handle> v2;
-      get_boundary(face->neighbor(face->ccw(edge)), face->neighbor(face->ccw(edge))->index(face), v2);
-      out_vertices.splice(out_vertices.end(), v2);
-    }
-  }
-  
-  void reconstruct() {
-    if (triangulation.number_of_faces() < 1) {
-      geometry = new OGRPolygon();
-    }
-    
-    for (Triangulation::All_faces_iterator current_face = triangulation.all_faces_begin(); current_face != triangulation.all_faces_end(); ++current_face) {
-      current_face->info().processed = false;
-    } for (Triangulation::Finite_vertices_iterator current_vertex = triangulation.finite_vertices_begin(); current_vertex != triangulation.finite_vertices_end(); ++current_vertex) {
-      if (!current_vertex->info().has_point) {
-        current_vertex->info().point = best_plane.to_3d(current_vertex->point());
-        current_vertex->info().has_point = true;
-      }
-    }
-    
-    // Reconstruct
-    OGRMultiPolygon *out_geometries = new OGRMultiPolygon();
-    for (Triangulation::Finite_faces_iterator seeding_face = triangulation.finite_faces_begin(); seeding_face != triangulation.finite_faces_end(); ++seeding_face) {
-      
-      if (!seeding_face->info().interior || seeding_face->info().processed) continue;
-      seeding_face->info().processed = true;
-      if (!seeding_face->info().processed) {
-        std::cout << "Error: Face should be marked as reconstructed!" << std::endl;
-      }
-      
-      // Get boundary
-      std::list<Triangulation::Vertex_handle> vertices = std::list<Triangulation::Vertex_handle>();
-      if (seeding_face->neighbor(2)->info().interior && !seeding_face->neighbor(2)->info().processed) {
-        seeding_face->neighbor(2)->info().processed = true;
-        std::list<Triangulation::Vertex_handle> l2;
-        get_boundary(seeding_face->neighbor(2), seeding_face->neighbor(2)->index(seeding_face), l2);
-        vertices.splice(vertices.end(), l2);
-      } vertices.push_back(seeding_face->vertex(0));
-      if (seeding_face->neighbor(1)->info().interior && !seeding_face->neighbor(1)->info().processed) {
-        seeding_face->neighbor(1)->info().processed = true;
-        std::list<Triangulation::Vertex_handle> l1;
-        get_boundary(seeding_face->neighbor(1), seeding_face->neighbor(1)->index(seeding_face), l1);
-        vertices.splice(vertices.end(), l1);
-      } vertices.push_back(seeding_face->vertex(2));
-      if (seeding_face->neighbor(0)->info().interior && !seeding_face->neighbor(0)->info().processed) {
-        seeding_face->neighbor(0)->info().processed = true;
-        std::list<Triangulation::Vertex_handle> l0;
-        get_boundary(seeding_face->neighbor(0), seeding_face->neighbor(0)->index(seeding_face), l0);
-        vertices.splice(vertices.end(), l0);
-      } vertices.push_back(seeding_face->vertex(1));
-      
-      // Find cutting vertices
-      std::set<Triangulation::Vertex_handle> visited_vertices;
-      std::set<Triangulation::Vertex_handle> repeated_vertices;
-      for (std::list<Triangulation::Vertex_handle>::iterator current_vertex = vertices.begin(); current_vertex != vertices.end(); ++current_vertex) {
-        if (!visited_vertices.insert(*current_vertex).second) repeated_vertices.insert(*current_vertex);
-      } visited_vertices.clear();
-      
-      // Cut and join rings in the correct order
-      std::list<std::list<Triangulation::Vertex_handle>> rings;
-      std::stack<std::list<Triangulation::Vertex_handle>> chains_stack;
-      std::set<Triangulation::Vertex_handle> vertices_where_chains_begin;
-      rings.push_back(std::list<Triangulation::Vertex_handle>());
-      for (std::list<Triangulation::Vertex_handle>::iterator current_vertex = vertices.begin(); current_vertex != vertices.end(); ++current_vertex) {
-        
-        // New chain
-        if (repeated_vertices.count(*current_vertex) > 0) {
-          // Closed by itself
-          if (rings.back().front() == *current_vertex) {
-            // Degenerate (insufficient vertices to be valid)
-            if (rings.back().size() < 3) {
-              rings.back().clear();
-            } else {
-              std::list<Triangulation::Vertex_handle>::iterator second_element = rings.back().begin();
-              ++second_element;
-              // Degenerate (zero area)
-              if (rings.back().back() == *second_element) {
-                rings.back().clear();
-              }
-              // Valid
-              else {
-                rings.push_back(std::list<Triangulation::Vertex_handle>());
-              }
-            }
-          }
-          // Open by itself
-          else {
-            // Closed with others in stack
-            if (vertices_where_chains_begin.count(*current_vertex)) {
-              
-              while (rings.back().front() != *current_vertex) {
-                rings.back().splice(rings.back().begin(), chains_stack.top());
-                chains_stack.pop();
-              } vertices_where_chains_begin.erase(*current_vertex);
-              // Degenerate (insufficient vertices to be valid)
-              if (rings.back().size() < 3) {
-                rings.back().clear();
-              } else {
-                std::list<Triangulation::Vertex_handle>::iterator second_element = rings.back().begin();
-                ++second_element;
-                // Degenerate (zero area)
-                if (rings.back().back() == *second_element) {
-                  rings.back().clear();
-                }
-                // Valid
-                else {
-                  rings.push_back(std::list<Triangulation::Vertex_handle>());
-                }
-              }
-            }
-            // Open
-            else {
-              // Not first chain
-              if (repeated_vertices.count(rings.back().front()) > 0) {
-                vertices_where_chains_begin.insert(rings.back().front());
-              }
-              chains_stack.push(std::list<Triangulation::Vertex_handle>());
-              chains_stack.top().splice(chains_stack.top().begin(), rings.back());
-            }
-          }
-        } rings.back().push_back(*current_vertex);
-      }
-      // Final ring
-      while (chains_stack.size() > 0) {
-        rings.back().splice(rings.back().begin(), chains_stack.top());
-        chains_stack.pop();
-      }
-      // Degenerate (insufficient vertices to be valid)
-      if (rings.back().size() < 3) {
-        rings.back().clear();
+
+  OGRLinearRing *cgal_to_ring(const Polygon_2 &poly, bool is_3d) const {
+    auto *ring = new OGRLinearRing();
+    for (auto it = poly.vertices_begin(); it != poly.vertices_end(); ++it) {
+      if (is_3d) {
+        Point_3 p3 = best_plane.to_3d(*it);
+        ring->addPoint(p3.x(), p3.y(), p3.z());
       } else {
-        std::list<Triangulation::Vertex_handle>::iterator second_element = rings.back().begin();
-        ++second_element;
-        // Degenerate (zero area)
-        if (rings.back().back() == *second_element) {
-          rings.back().clear();
-        }
+        ring->addPoint(it->x(), it->y());
       }
-      
-      // Remove last ring if too small (or empty)
-      if (rings.back().size() < 3) {
-        rings.pop_back();
-      }
-      
-      // Start rings at the lexicographically smallest vertex
-      for (std::list<std::list<Triangulation::Vertex_handle>>::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
-        std::list<Triangulation::Vertex_handle>::iterator smallest_vertex = current_ring->begin();
-        for (std::list<Triangulation::Vertex_handle>::iterator current_vertex = current_ring->begin(); current_vertex != current_ring->end(); ++current_vertex) {
-          if (geometry->Is3D()) {
-            if ((*current_vertex)->info().point < (*smallest_vertex)->info().point) smallest_vertex = current_vertex;
-          } else {
-            if ((*current_vertex)->point() < (*smallest_vertex)->point()) smallest_vertex = current_vertex;
-          }
-         
-        } if (current_ring->back() != *smallest_vertex) {
-          ++smallest_vertex;
-          current_ring->splice(current_ring->begin(), *current_ring, smallest_vertex, current_ring->end());
-        }
-      }
-      
-      // Make rings
-      if (rings.size() == 0) continue;
-      std::list<OGRLinearRing *> rings_for_polygon;
-      for (std::list<std::list<Triangulation::Vertex_handle>>::iterator current_ring = rings.begin(); current_ring != rings.end(); ++current_ring) {
-        OGRLinearRing *new_ring = new OGRLinearRing();
-        for (std::list<Triangulation::Vertex_handle>::reverse_iterator current_vertex = current_ring->rbegin(); current_vertex != current_ring->rend(); ++current_vertex) {
-          if (geometry->Is3D()) new_ring->addPoint((*current_vertex)->info().point.x(),
-                                                   (*current_vertex)->info().point.y(),
-                                                   (*current_vertex)->info().point.z());
-          else new_ring->addPoint((*current_vertex)->point().x(), (*current_vertex)->point().y());
-        } if (geometry->Is3D()) new_ring->addPoint(current_ring->back()->info().point.x(),
-                                                   current_ring->back()->info().point.y(),
-                                                   current_ring->back()->info().point.z());
-        else new_ring->addPoint(current_ring->back()->point().x(), current_ring->back()->point().y());
-        rings_for_polygon.push_back(new_ring);
-      } OGRPolygon *new_polygon = new OGRPolygon();
-      for (std::list<OGRLinearRing *>::iterator current_ring = rings_for_polygon.begin(); current_ring != rings_for_polygon.end(); ++current_ring) {
-        if (!(*current_ring)->isClockwise()) {
-          new_polygon->addRingDirectly(*current_ring);
-          break;
-        }
-      } for (std::list<OGRLinearRing *>::iterator current_ring = rings_for_polygon.begin(); current_ring != rings_for_polygon.end(); ++current_ring)
-        if ((*current_ring)->isClockwise()) new_polygon->addRingDirectly(*current_ring);
-      out_geometries->addGeometryDirectly(new_polygon);
     }
-    
-    if (out_geometries->getNumGeometries() == 0) {
-      delete out_geometries;
-      geometry = new OGRPolygon();
-    }
-    
-    else if (out_geometries->getNumGeometries() == 1) {
-      OGRPolygon *new_polygon = static_cast<OGRPolygon *>(out_geometries->getGeometryRef(0)->clone());
-      delete out_geometries;
-      geometry = new_polygon;
-    }
-    
-    else geometry = out_geometries;
+    ring->closeRings();
+    return ring;
   }
-  
-  void repair() {
-    if (geometry->Is3D()) compute_plane();
-    insert_constraints_in_triangulation(geometry);
-    if (triangulation.number_of_faces() == 0) {
-      geometry = NULL;
-      return;
-    } label_triangles();
-    reconstruct();
+
+  OGRGeometry *from_cgal_multipolygon(const Multipolygon_with_holes_2 &mp, bool is_3d) {
+    if (mp.number_of_polygons_with_holes() == 0)
+      return new OGRPolygon();
+
+    auto *result = new OGRMultiPolygon();
+    for (auto it = mp.polygons_with_holes().begin(); it != mp.polygons_with_holes().end(); ++it) {
+      auto *poly = new OGRPolygon();
+      poly->addRingDirectly(cgal_to_ring(it->outer_boundary(), is_3d));
+      for (auto hit = it->holes_begin(); hit != it->holes_end(); ++hit)
+        poly->addRingDirectly(cgal_to_ring(*hit, is_3d));
+      result->addGeometryDirectly(poly);
+    }
+
+    if (result->getNumGeometries() == 1) {
+      OGRPolygon *single = static_cast<OGRPolygon *>(result->getGeometryRef(0)->clone());
+      delete result;
+      return single;
+    }
+    return result;
   }
 };
 
-#endif /* Polygon_repair_h */
+#endif

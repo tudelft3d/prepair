@@ -19,67 +19,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+cmake_minimum_required(VERSION 3.5)
 project( prepair )
-
-cmake_minimum_required(VERSION 3.1)
-
-if(NOT POLICY CMP0070 AND POLICY CMP0053)
-  # Only set CMP0053 to OLD with CMake<3.10, otherwise there is a warning.
-  cmake_policy(SET CMP0053 OLD)
-endif()
-
-if(POLICY CMP0071)
-  cmake_policy(SET CMP0071 NEW)
-endif()
-
-set( CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true )
- 
-if ( COMMAND cmake_policy )
-  cmake_policy( SET CMP0003 NEW )  
-endif()
 
 set( CMAKE_BUILD_TYPE "Release")
 
-# CGAL
-find_package( CGAL REQUIRED )
+# CGAL (needs >=5.5 for the Polygon_repair package)
+find_package( CGAL 6.0 REQUIRED )
 
-if ( NOT CGAL_FOUND )
-  message(SEND_ERROR "prepair requires the CGAL library")
-  return()  
-endif()
-
-# include helper file
-include( ${CGAL_USE_FILE} )
-
-# Boost
+# Boost (for program_options CLI parsing)
 find_package( Boost 1.50.0 REQUIRED COMPONENTS program_options filesystem)
 
-if ( NOT Boost_FOUND )
-  message(SEND_ERROR "prepair requires the Boost library version 1.50 or higher")
-  return()  
-endif()
-
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
-
-# GDAL
-find_package( GDAL 3.0 )
-
-if ( NOT GDAL_FOUND )
-  message(SEND_ERROR "prepair requires the GDAL library")
-endif()
-
+# GDAL (for I/O)
+find_package( GDAL 3.0 REQUIRED )
 include_directories( ${GDAL_INCLUDE_DIR} )
 
-# Creating entries for target: prepair
-# ############################
-
 add_executable( prepair prepair.cpp )
-
 set_property(TARGET prepair PROPERTY CXX_STANDARD 17)
-
-add_to_cached_list( CGAL_EXECUTABLE_TARGETS prepair )
-
-# Link to CGAL and third-party libraries
-target_link_libraries(prepair ${GDAL_LIBRARY} ${Boost_LIBRARIES})
-
+target_link_libraries(prepair CGAL::CGAL ${GDAL_LIBRARY} ${Boost_LIBRARIES})
 install(TARGETS prepair DESTINATION bin)
