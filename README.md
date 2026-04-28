@@ -4,13 +4,15 @@ prepair — pronounce 'pee-repair' as in 'polygon repair' — permits us to easi
 
 Automated repair methods can be considered as interpreting ambiguous or ill-defined polygons and giving a coherent and clearly defined output. Examples of errors are: polygon has a dangling edge; polygon is not closed; polygon self-intersects; an inner ring of the polygon is located outside the outer ring; etc.
 
-prepair performs more or less the same as the PostGIS 2.0's function [ST_MakeValid()](http://postgis.org/documentation/manual-svn/ST_MakeValid.html), but is faster, scales better to massive polygons, and predicting its behaviour is simple (so one can guess how polygons will be repaired).
+The algorithm behind prepair was integrated into [CGAL](https://www.cgal.org) as the [2D Polygon Repair](https://doc.cgal.org/latest/Polygon_repair/index.html) package (CGAL 6.0+). This software is now a thin wrapper around that package, adding GDAL/OGR I/O support and 3D polygon repair via plane fitting. For direct use in C++ projects, consider using the CGAL package directly.
 
-prepair is based on a constrained triangulation ([CGAL](http://www.cgal.org) is used) and [GDAL](http://www.gdal.org/) is used to read/write WKT.
+prepair uses [GDAL](http://www.gdal.org/) to read/write geometries and [Boost](http://www.boost.org/) for command-line parsing.
 
 It is available under the [GPLv3](http://www.gnu.org/copyleft/gpl.html) licence, which allows you to use, copy and modify the software freely. However, if you incorporate prepair in your software, you must distribute the source code of your software, as well as any modifications made to pprepair, under the GPLv3 as well.
 
 Note that prepair is only concerned with single polygons, and if you're interested in validating how different polygons interact with each other (to be precise: to check if they form a planar partition) have a look at our other project [pprepair](https://github.com/tudelft3d/pprepair).
+
+If you want to use the polygon repair algorithm directly in your C++ code, see the [CGAL 2D Polygon Repair](https://doc.cgal.org/latest/Polygon_repair/index.html) package instead.
 
 
 ## Details
@@ -23,11 +25,12 @@ If you use prepair for a scientific project, please cite this article.
 
 ## How to get it?
 
-prepair is very easy to compile on Mac and Linux using the included CMake file. It should also work on other Unix-like systems and is possible to compile under Windows. To compile prepair, you need to have a recent version of the following three (free) libraries:
+prepair is very easy to compile on Mac and Linux using the included CMake file. It should also work on other Unix-like systems and is possible to compile under Windows. To compile prepair, you need the following libraries:
 
-1. [CGAL](http://www.cgal.org)
-2. [GDAL](http://www.gdal.org/)
-3. [CMake](http://www.cmake.org) 
+1. [CGAL](http://www.cgal.org) 6.0 or later (provides the polygon repair algorithm)
+2. [GDAL](http://www.gdal.org/) 3.0 or later (for I/O)
+3. [Boost](http://www.boost.org/) 1.50 or later (for command-line parsing)
+4. [CMake](http://www.cmake.org) 
 
 On Mac, you can install it using [Homebrew](http://brew.sh):
 
@@ -54,8 +57,6 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a path to a dataset (ge
     MULTIPOLYGON (((0 0,5 5,0 10,0 0)),((5 5,10 0,10 10,5 5)))
 
 ## Examples of invalid input you can try
-
-The folder 'data' contains examples of relatively big invalid polygons. These are from the [Corine Land Cover 2006 dataset](http://sia.eionet.europa.eu/CLC2006).
 
 A 'bowtie' polygon: 
     
