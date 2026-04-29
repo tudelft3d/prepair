@@ -58,6 +58,8 @@ A [WKT](http://en.wikipedia.org/wiki/Well-known_text) or a path to a dataset (ge
 
 ## Examples of invalid input you can try
 
+The folder 'data' contains examples of relatively big invalid polygons. These are from the [Corine Land Cover 2006 dataset](http://sia.eionet.europa.eu/CLC2006).
+
 A 'bowtie' polygon: 
     
     POLYGON((0 0, 0 10, 10 0, 10 10, 0 0))
