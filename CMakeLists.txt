@@ -1,6 +1,6 @@
 # prepair
 #
-# Copyright © 2009-2022,
+# Copyright © 2009-2026,
 # Ken Arroyo Ohori    k.ohori@tudelft.nl
 # Hugo Ledoux         h.ledoux@tudelft.nl
 # Martijn Meijers     b.m.meijers@tudelft.nl
@@ -24,7 +24,7 @@ project( prepair )
 
 set( CMAKE_BUILD_TYPE "Release")
 
-# CGAL (needs >=5.5 for the Polygon_repair package)
+# CGAL (needs 6.0 for the Polygon_repair package)
 find_package( CGAL 6.0 REQUIRED )
 
 # Boost (for program_options CLI parsing)
