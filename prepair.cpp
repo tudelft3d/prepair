@@ -188,14 +188,14 @@ int main(int argc, const char *argv[]) {
         } for (OGRFeatureUniquePtr &feature: *layer) {
           OGRFeature *out_feature = feature->Clone();
           Polygon_repair pr;
-          pr.geometry = feature->GetGeometryRef();
+          pr.geometry = feature->GetGeometryRef()->clone();
           pr.repair();
           OGRGeometry *out_geometry = pr.geometry;
           out_feature->SetGeometry(out_geometry);
           if (out_layer->CreateFeature(out_feature) != OGRERR_NONE) {
             std::cout << "Error: couldn't create feature." << std::endl;
             return 1;
-          }
+          } OGRFeature::DestroyFeature(out_feature);
         }
       }
     }
@@ -235,9 +235,10 @@ int main(int argc, const char *argv[]) {
     
     else if (vm.count("ogrin")) {
       for (OGRLayer *layer: in_dataset->GetLayers()) {
+//        std::cout << layer->GetName();
         for (OGRFeatureUniquePtr &feature: *layer) {
           Polygon_repair pr;
-          pr.geometry = feature->GetGeometryRef();
+          pr.geometry = feature->GetGeometryRef()->clone();
           pr.repair();
           OGRGeometry *out_geometry = pr.geometry;
           char *output_wkt;
