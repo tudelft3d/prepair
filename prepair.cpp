@@ -185,8 +185,13 @@ int main(int argc, const char *argv[]) {
         if (out_layer == NULL) {
           std::cout << "Error: couldn't create layer." << std::endl;
           return 1;
-        } for (OGRFeatureUniquePtr &feature: *layer) {
-          OGRFeature *out_feature = feature->Clone();
+        } OGRFeatureDefn *in_defn = layer->GetLayerDefn();
+        for (int i = 0; i < in_defn->GetFieldCount(); ++i)
+          out_layer->CreateField(in_defn->GetFieldDefn(i));
+        for (OGRFeatureUniquePtr &feature: *layer) {
+          OGRFeature *out_feature = OGRFeature::CreateFeature(out_layer->GetLayerDefn());
+          out_feature->SetFrom(feature.get());
+          out_feature->SetFID(-1);
           Polygon_repair pr;
           pr.geometry = feature->GetGeometryRef()->clone();
           pr.repair();
@@ -201,6 +206,7 @@ int main(int argc, const char *argv[]) {
     }
     
     GDALClose(out_dataset);
+    GDALClose(in_dataset);
   }
   
   else {
@@ -235,7 +241,7 @@ int main(int argc, const char *argv[]) {
     
     else if (vm.count("ogrin")) {
       for (OGRLayer *layer: in_dataset->GetLayers()) {
-//        std::cout << layer->GetName();
+        std::cout << layer->GetName();
         for (OGRFeatureUniquePtr &feature: *layer) {
           Polygon_repair pr;
           pr.geometry = feature->GetGeometryRef()->clone();
