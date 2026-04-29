@@ -28,7 +28,7 @@ set( CMAKE_BUILD_TYPE "Release")
 find_package( CGAL 6.0 REQUIRED )
 
 # Boost (for program_options CLI parsing)
-find_package( Boost REQUIRED COMPONENTS program_options filesystem)
+find_package( Boost REQUIRED COMPONENTS program_options filesystem CONFIG)
 
 # GDAL (for I/O)
 find_package( GDAL 3.0 REQUIRED )
