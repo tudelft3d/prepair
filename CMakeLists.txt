@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.15)
 project( prepair )
 
 set( CMAKE_BUILD_TYPE "Release")
@@ -28,7 +28,7 @@ set( CMAKE_BUILD_TYPE "Release")
 find_package( CGAL 6.0 REQUIRED )
 
 # Boost (for program_options CLI parsing)
-find_package( Boost 1.50.0 REQUIRED COMPONENTS program_options filesystem)
+find_package( Boost REQUIRED COMPONENTS program_options filesystem)
 
 # GDAL (for I/O)
 find_package( GDAL 3.0 REQUIRED )
@@ -36,5 +36,5 @@ include_directories( ${GDAL_INCLUDE_DIR} )
 
 add_executable( prepair prepair.cpp )
 set_property(TARGET prepair PROPERTY CXX_STANDARD 17)
-target_link_libraries(prepair CGAL::CGAL ${GDAL_LIBRARY} ${Boost_LIBRARIES})
+target_link_libraries(prepair CGAL::CGAL ${GDAL_LIBRARY} Boost::program_options Boost::filesystem)
 install(TARGETS prepair DESTINATION bin)
