@@ -164,7 +164,7 @@ int main(int argc, const char *argv[]) {
       } std::string line;
       while (std::getline(in_file, line)) {
         OGRErr error = OGRGeometryFactory::createFromWkt(line.c_str(), NULL, &in_geometry);
-        if (error != OGRERR_NONE) {
+        if (error == OGRERR_NONE) {
           OGRFeature *out_feature = OGRFeature::CreateFeature(out_layer->GetLayerDefn());
           Polygon_repair pr;
           pr.geometry = in_geometry;
@@ -226,7 +226,7 @@ int main(int argc, const char *argv[]) {
       std::string line;
       while (std::getline(in_file, line)) {
         OGRErr error = OGRGeometryFactory::createFromWkt(line.c_str(), NULL, &in_geometry);
-        if (error != OGRERR_NONE) {
+        if (error == OGRERR_NONE) {
           Polygon_repair pr;
           pr.geometry = in_geometry;
           pr.repair();
