@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
+    name: build-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,7 +21,7 @@ jobs:
             compiler: ""
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up MSVC
         if: runner.os == 'Windows'
@@ -30,7 +30,7 @@ jobs:
           arch: x64
 
       - name: Set up build environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-name: build
           cache-environment: true
@@ -73,3 +73,33 @@ jobs:
           fi
           cmake --install build --prefix "$install_dir"
           ./install/bin/prepair* --help
+
+  conda:
+    name: conda-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-14
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up rattler-build
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-name: build
+          cache-environment: true
+          create-args: >-
+            rattler-build
+
+      - name: Build conda package
+        shell: bash -el {0}
+        run: |
+          rattler-build build \
+            --recipe conda/recipe/recipe.yaml \
+            --output-dir conda-output \
+            -c conda-forge
