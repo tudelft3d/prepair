@@ -54,6 +54,14 @@ target_link_libraries(prepair PRIVATE
   Boost::program_options
   GDAL::GDAL)
 
+if(WIN32)
+  target_compile_definitions(prepair PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+if(MSVC)
+  # CGAL templates hit MSVC's default object-file section limit.
+  target_compile_options(prepair PRIVATE /bigobj /utf-8)
+endif()
+
 include(GNUInstallDirs)
 install(TARGETS prepair RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES README.md LICENSE.txt DESTINATION ${CMAKE_INSTALL_DOCDIR})

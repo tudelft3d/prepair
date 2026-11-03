@@ -27,7 +27,7 @@
 #include <ogrsf_frmts.h>
 #include "Polygon_repair.h"
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
   
   boost::program_options::options_description input_options("input options");
   input_options.add_options()
@@ -110,15 +110,15 @@ int main(int argc, const char *argv[]) {
     GDALAllRegister();
     std::filesystem::path extension = std::filesystem::path(vm["ogrout"].as<std::string>()).extension();
     std::string out_driver_name;
-    if (extension.compare(".csv") == 0) out_driver_name = "CSV";
-    else if (extension.compare(".dxf") == 0) out_driver_name = "DXF";
-    else if (extension.compare(".gdb") == 0) out_driver_name = "FileGDB";
-    else if (extension.compare(".json") == 0) out_driver_name = "GeoJSON";
-    else if (extension.compare(".geojson") == 0) out_driver_name = "GeoJSON";
-    else if (extension.compare(".gml") == 0) out_driver_name = "GML";
-    else if (extension.compare(".gpkg") == 0) out_driver_name = "GPKG";
-    else if (extension.compare(".kml") == 0) out_driver_name = "KML";
-    else if (extension.compare(".shp") == 0) out_driver_name = "ESRI Shapefile";
+    if (extension == ".csv") out_driver_name = "CSV";
+    else if (extension == ".dxf") out_driver_name = "DXF";
+    else if (extension == ".gdb") out_driver_name = "FileGDB";
+    else if (extension == ".json") out_driver_name = "GeoJSON";
+    else if (extension == ".geojson") out_driver_name = "GeoJSON";
+    else if (extension == ".gml") out_driver_name = "GML";
+    else if (extension == ".gpkg") out_driver_name = "GPKG";
+    else if (extension == ".kml") out_driver_name = "KML";
+    else if (extension == ".shp") out_driver_name = "ESRI Shapefile";
     else {
       std::cout << "Error: unknown output format" << std::endl;
       return 1;

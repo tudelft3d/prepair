@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: gxx_linux-64
+          - os: macos-14
+            compiler: clangxx_osx-arm64
+          - os: windows-latest
+            compiler: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up build environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: build
+          cache-environment: true
+          create-args: >-
+            cmake
+            ninja
+            cgal-cpp
+            libgdal-core
+            libboost-devel
+            gmp
+            ${{ matrix.compiler }}
+
+      - name: Configure
+        shell: bash -el {0}
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            prefix_path="$CONDA_PREFIX/Library"
+          else
+            prefix_path="$CONDA_PREFIX"
+          fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$prefix_path"
+
+      - name: Build
+        shell: bash -el {0}
+        run: cmake --build build
+
+      - name: Test
+        shell: bash -el {0}
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Install and smoke test
+        shell: bash -el {0}
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            install_dir="$(cygpath -w "$PWD/install")"
+          else
+            install_dir="$PWD/install"
+          fi
+          cmake --install build --prefix "$install_dir"
+          ./install/bin/prepair* --help
