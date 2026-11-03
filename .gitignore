@@ -1,5 +1,7 @@
 # Specify filepatterns you want git to ignore.
 
+build/
+.DS_Store
 CMakeCache.txt
 CMakeFiles
 Makefile

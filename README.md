@@ -29,17 +29,22 @@ prepair is very easy to compile on Mac and Linux using the included CMake file. 
 
 1. [CGAL](http://www.cgal.org) 6.0 or later (provides the polygon repair algorithm)
 2. [GDAL](http://www.gdal.org/) 3.0 or later (for I/O)
-3. [Boost](http://www.boost.org/) 1.50 or later (for command-line parsing)
-4. [CMake](http://www.cmake.org) 
+3. [Boost](http://www.boost.org/) 1.70 or later (for command-line parsing)
+4. [CMake](http://www.cmake.org) 3.20 or later
 
 On Mac, you can install it using [Homebrew](http://brew.sh):
 
     $ brew install tudelft3d/software/prepair
 
-Once all the dependencies are met, just generate the makefile for your system and compile:
+Once all the dependencies are met, configure and build out of source:
 
-    $ cmake -DCMAKE_BUILD_TYPE=Release .
-    $ make
+    $ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    $ cmake --build build
+    $ ctest --test-dir build
+
+To install it somewhere (for example, into a custom prefix):
+
+    $ cmake --install build --prefix /path/to/prefix
 
 ## How to run it?
 

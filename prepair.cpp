@@ -19,9 +19,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <boost/program_options.hpp>
+#include <cpl_conv.h>
 #include <ogrsf_frmts.h>
 #include "Polygon_repair.h"
 
@@ -154,6 +156,7 @@ int main(int argc, const char *argv[]) {
         std::cout << "Error: couldn't create feature." << std::endl;
         return 1;
       }
+      OGRFeature::DestroyFeature(out_feature);
     }
     
     else if (vm.count("wktfile")) {
@@ -175,6 +178,7 @@ int main(int argc, const char *argv[]) {
             std::cout << "Error: couldn't create feature." << std::endl;
             return 1;
           }
+          OGRFeature::DestroyFeature(out_feature);
         }
       }
     }
@@ -186,8 +190,12 @@ int main(int argc, const char *argv[]) {
           std::cout << "Error: couldn't create layer." << std::endl;
           return 1;
         } OGRFeatureDefn *in_defn = layer->GetLayerDefn();
-        for (int i = 0; i < in_defn->GetFieldCount(); ++i)
-          out_layer->CreateField(in_defn->GetFieldDefn(i));
+        for (int i = 0; i < in_defn->GetFieldCount(); ++i) {
+          if (out_layer->CreateField(in_defn->GetFieldDefn(i)) != OGRERR_NONE) {
+            std::cout << "Error: couldn't create field." << std::endl;
+            return 1;
+          }
+        }
         for (OGRFeatureUniquePtr &feature: *layer) {
           OGRFeature *out_feature = OGRFeature::CreateFeature(out_layer->GetLayerDefn());
           out_feature->SetFrom(feature.get());
@@ -219,7 +227,7 @@ int main(int argc, const char *argv[]) {
       char *output_wkt;
       out_geometry->exportToWkt(&output_wkt);
       std::cout << output_wkt << std::endl;
-      delete output_wkt;
+      CPLFree(output_wkt);
     }
     
     else if (vm.count("wktfile")) {
@@ -234,7 +242,7 @@ int main(int argc, const char *argv[]) {
           char *output_wkt;
           out_geometry->exportToWkt(&output_wkt);
           std::cout << output_wkt << std::endl;
-          delete output_wkt;
+          CPLFree(output_wkt);
         } else std::cout << std::endl;
       }
     }
@@ -250,7 +258,7 @@ int main(int argc, const char *argv[]) {
           char *output_wkt;
           out_geometry->exportToWkt(&output_wkt);
           std::cout << output_wkt << std::endl;
-          delete output_wkt;
+          CPLFree(output_wkt);
         }
       }
     }

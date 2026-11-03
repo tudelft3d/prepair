@@ -23,7 +23,10 @@
 #define Polygon_repair_h
 
 #include <list>
+#include <utility>
 #include <vector>
+
+#include <ogr_geometry.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polygon_repair/repair.h>
@@ -38,10 +41,16 @@ using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<Kernel>;
 using Multipolygon_with_holes_2 = CGAL::Multipolygon_with_holes_2<Kernel>;
 
 struct Polygon_repair {
-  OGRGeometry *geometry;
+  OGRGeometry *geometry = nullptr;
+
+  Polygon_repair() = default;
+  Polygon_repair(const Polygon_repair &) = delete;
+  Polygon_repair &operator=(const Polygon_repair &) = delete;
+  ~Polygon_repair() { delete geometry; }
 
   void repair() {
     if (!geometry || geometry->IsEmpty()) {
+      delete geometry;
       geometry = new OGRPolygon();
       return;
     }
