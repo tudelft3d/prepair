@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(prepair
-  VERSION 3.0.1
+  VERSION 3.0.2
   DESCRIPTION "Automatic repair of invalid GIS polygons"
   HOMEPAGE_URL "https://github.com/tudelft3d/prepair"
   LANGUAGES CXX)
