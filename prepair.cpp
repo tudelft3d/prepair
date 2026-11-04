@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
     
     else if (vm.count("ogrin")) {
       for (OGRLayer *layer: in_dataset->GetLayers()) {
-        OGRLayer *out_layer = out_dataset->CreateLayer(layer->GetName());
+        OGRLayer *out_layer = out_dataset->CreateLayer(layer->GetName(), layer->GetSpatialRef());
         if (out_layer == NULL) {
           std::cout << "Error: couldn't create layer." << std::endl;
           return 1;
