@@ -118,6 +118,7 @@ int main(int argc, char *argv[]) {
     else if (extension == ".gml") out_driver_name = "GML";
     else if (extension == ".gpkg") out_driver_name = "GPKG";
     else if (extension == ".kml") out_driver_name = "KML";
+    else if (extension == ".parquet") out_driver_name = "Parquet";
     else if (extension == ".shp") out_driver_name = "ESRI Shapefile";
     else {
       std::cout << "Error: unknown output format" << std::endl;
